@@ -48,7 +48,7 @@ STOCK_ALTERNATIVE=(womarchy-session aquamarine hyprland mesa)   # what ALLOW_STO
 # (wsl/audio.sh); Mesa d3d12 + Dozen Vulkan instead of vendor GPU drivers;
 # mesa-utils for eglinfo GPU checks. No hyprlock/hypridle: Windows locks the session.
 PACKAGES=(base base-devel sudo git nano vim
-          hyprland uwsm xdg-desktop-portal-hyprland hyprpolkitagent waybar fuzzel mako kitty
+          hyprland uwsm xdg-desktop-portal-hyprland polkit-gnome waybar fuzzel mako kitty
           wl-clipboard grim slurp
           noto-fonts ttf-jetbrains-mono-nerd   # noto-fonts first, so it (not gnu-free-fonts) provides ttf-font
           pipewire pipewire-alsa pipewire-jack pipewire-pulse gst-plugin-pipewire libpulse wireplumber

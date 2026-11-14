@@ -12,9 +12,13 @@ local mainMod  = "SUPER"
 
 ---- Autostart ----
 hl.on("hyprland.start", function()
+  -- uwsm waits for WAYLAND_DISPLAY/HYPRLAND_INSTANCE_SIGNATURE in the systemd
+  -- environment and ends the session after ~15 s without them.
+  hl.exec_cmd("uwsm finalize")
   hl.exec_cmd("waybar")
   hl.exec_cmd("mako")
-  hl.exec_cmd("systemctl --user start hyprpolkitagent")
+  -- hyprpolkitagent needs hyprtoolkit, which needs DRM/dmabuf (not in WSL); GTK works.
+  hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
 end)
 
 hl.env("XCURSOR_SIZE", "24")

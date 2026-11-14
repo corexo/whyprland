@@ -22,13 +22,13 @@ Omarchy-Menü.
 
 | # | Schritt | Dateien | Aufwand | Stand |
 |---|---|---|---|---|
-| 1 | Image ohne Omarchy: Pakete aus dem Arch-Archiv mit festem Datum, eigene Paketliste (hyprland, uwsm, waybar, fuzzel, mako, kitty, hyprpaper, pipewire, xdg-desktop-portal-hyprland) | `linux/image/build-image.sh`, `verify-image.sh`, `omarchy-key.env`, `snapshot-watch.yml` | ½ Tag | offen |
-| 2 | `womarchy-compat` verschlanken: Ersatz für limine und snapper raus, Omarchys Schlüssel und `[omarchy]`-Repo raus | `linux/packages/womarchy-compat`, `linux/overlay/wsl/pacman.sh`, `womarchy-apply-system` | 2 h | offen |
-| 3 | User-Setup: eigene Standard-`hyprland.lua` (Terminal, Starter, Logout, Leiste), Windows-Anpassungen (Super+L, Ctrl+Alt+Del) ohne `o.bind` | `womarchy-provision-user`, `linux/overlay/user/` | ½ Tag | offen |
-| 4 | Update und Rollback über `pacman -Syu` statt `omarchy update`, Rollback-Hook bleibt | `womarchy-rollback`, `rollback-point`, `windows/omarchy/src/maintain.rs` | 2 h | offen |
-| 5 | Umbenennen: `omarchy.exe` → `whyprland.exe`, Distro „Whyprland“, Start-Menü, `install.ps1`, Links auf `corexo/whyprland` | `windows/`, `install.ps1`, `README.md`, `.github/` | ½ Tag | offen |
-| 6 | Eigener GPG-Signierschlüssel für das Paket-Repo (der bisherige gehört sytelus), im Tresor und als CI-Secret | `linux/packages/womarchy-keyring`, `.github/workflows/packages.yml` | 1 h | offen |
-| 7 | Bauen und auf Windows testen (Build-Distro `womarchy-build`, echter Desktop, GPU) | `linux/image/README.md`, `lab/` | ½ Tag | offen |
+| 1 | Image ohne Omarchy: Pakete aus dem Arch-Archiv mit festem Datum, eigene Paketliste (hyprland, uwsm, waybar, fuzzel, mako, kitty, hyprpaper, pipewire, xdg-desktop-portal-hyprland) | `linux/image/build-image.sh`, `verify-image.sh`, `omarchy-key.env`, `snapshot-watch.yml` | ½ Tag | erledigt |
+| 2 | `womarchy-compat` verschlanken: Ersatz für limine und snapper raus, Omarchys Schlüssel und `[omarchy]`-Repo raus | `linux/packages/womarchy-compat`, `linux/overlay/wsl/pacman.sh`, `womarchy-apply-system` | 2 h | erledigt |
+| 3 | User-Setup: eigene Standard-`hyprland.lua` (Terminal, Starter, Logout, Leiste), Windows-Anpassungen (Super+L, Ctrl+Alt+Del) ohne `o.bind` | `womarchy-provision-user`, `linux/overlay/user/` | ½ Tag | erledigt |
+| 4 | Update und Rollback über `pacman -Syu` statt `omarchy update`, Rollback-Hook bleibt | `womarchy-rollback`, `rollback-point`, `windows/omarchy/src/maintain.rs` | 2 h | erledigt |
+| 5 | Umbenennen: `omarchy.exe` → `whyprland.exe`, Distro „Whyprland“, Start-Menü, `install.ps1`, Links auf `corexo/whyprland` | `windows/`, `install.ps1`, `README.md`, `.github/` | ½ Tag | erledigt |
+| 6 | Eigener GPG-Signierschlüssel für das Paket-Repo (der bisherige gehört sytelus), im Tresor und als CI-Secret | `linux/packages/womarchy-keyring`, `.github/workflows/packages.yml` | 1 h | erledigt |
+| 7 | Bauen und auf Windows testen (Build-Distro `womarchy-build`, echter Desktop, GPU) | `linux/image/README.md`, `lab/` | ½ Tag | Lab-Test ok (2026-11-14), signiertes Release offen |
 
 ## Fertig, wenn
 
@@ -43,3 +43,13 @@ Omarchy-Menü.
   festgeschrieben und mit `patches/versions.sh` abgeglichen.
 - Ohne Omarchy fehlen die Helfer, die Omarchys Konfiguration erwartet. Deshalb wird alles in `womarchy.lua` und
   `womarchy-session` auf `omarchy-*`-Aufrufe geprüft.
+
+## Lab-Test 2026-11-14
+
+Image `Whyprland-20261114.wsl` (669 MB, unsigniertes Lab-Repo), Distro `whyprland-test`, `whyprland.exe` 0.3.0:
+
+- Hyprland startet im WSL-Backend, Frames über Shared Memory, 1 Monitor 3420×2148 bei Scale 2; Clipboard verbunden.
+- GPU: `D3D12 (Intel(R) UHD Graphics)`; waybar, mako und kitty laufen; `hyprctl configerrors` ist leer.
+- Gefixt: `uwsm finalize` fehlte (uwsm beendete die Session nach etwa 15 s); hyprpolkitagent ersetzt durch polkit-gnome (hyprtoolkit braucht DRM/dmabuf).
+- Nur im Lab: Nach der Ersteinrichtung verlangt pacman eine signierte `[womarchy]`-DB, und das Lab-Repo ist unsigniert. Erst mit dem signierten Release (CI-Workflow `packages`) testbar.
+- Nicht getestet: mehrere Monitore, Ton, `whyprland install`/`update`/`rollback`, Start-Menü-Eintrag, Tastatureingaben per Hand.
