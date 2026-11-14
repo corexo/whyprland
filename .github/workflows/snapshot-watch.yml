@@ -52,7 +52,7 @@ jobs:
           sed -i '/^\[core\]/i [womarchy]\nSigLevel = PackageOptional DatabaseRequired\nServer = https://github.com/sytelus/womarchy/releases/download/packages\n' /etc/pacman.conf
           pacman-key --init && pacman-key --populate archlinux
           curl -fsSL "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_SHA/linux/packages/womarchy-keyring/womarchy.asc" | pacman-key --add -
-          pacman-key --lsign-key EB71032617BBA1C4C8EE77C3047A25C1135F969D
+          pacman-key --lsign-key 9E0910191CF7D49E618235CC072E409C5D4D7863
           report=$(mktemp)
           {
             if ! pacman -Syyuu --noconfirm; then
