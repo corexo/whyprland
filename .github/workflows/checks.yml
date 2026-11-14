@@ -18,16 +18,16 @@ concurrency:
 
 jobs:
   viewer:
-    name: omarchy.exe (build, unit tests, clippy)
+    name: whyprland.exe (build, unit tests, clippy)
     runs-on: windows-latest
     defaults:
       run:
-        working-directory: windows/omarchy
+        working-directory: windows/whyprland
     steps:
       - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: windows/omarchy
+          workspaces: windows/whyprland
       - run: cargo build --release --locked
       - run: cargo test --release --locked
       - run: cargo clippy --release --all-targets --locked -- -D warnings

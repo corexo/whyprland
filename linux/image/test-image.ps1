@@ -1,17 +1,17 @@
-# Install a built womarchy .wsl as a throwaway distro, run the real WSL OOBE
+# Install a built whyprland .wsl as a throwaway distro, run the real WSL OOBE
 # unattended, and verify it (system + user + Windows Start menu). Does not start Hyprland.
-#   pwsh linux/image/test-image.ps1 -Image out\Omarchy-4.0.4-womarchy-20260930-lite.wsl [-Name omarchy-test-2] [-Location D:\WSL\omarchy-test-2] [-Keep]
-# Test distros must be named omarchy-test*. They are unregistered at the end, also
+#   pwsh linux/image/test-image.ps1 -Image out\Whyprland-20261114.wsl [-Name whyprland-test-2] [-Location D:\WSL\whyprland-test-2] [-Keep]
+# Test distros must be named whyprland-test*. They are unregistered at the end, also
 # when the test fails, unless -Keep is given. The OOBE uses the TEST-ONLY defaults
-# (user omarchy / password omarchy).
+# (user whyprland / password whyprland).
 param(
   [Parameter(Mandatory = $true)][string]$Image,
-  [string]$Name = "omarchy-test",
-  [string]$Location = (Join-Path $env:LOCALAPPDATA "womarchy-test\omarchy-test"),
+  [string]$Name = "whyprland-test",
+  [string]$Location = (Join-Path $env:LOCALAPPDATA "womarchy-test\whyprland-test"),
   [switch]$Keep
 )
 $ErrorActionPreference = "Stop"
-if ($Name -notlike "omarchy-test*") { throw "test distros must be named omarchy-test*" }
+if ($Name -notlike "whyprland-test*") { throw "test distros must be named whyprland-test*" }
 if (-not $PSBoundParameters.ContainsKey('Location')) { $Location = Join-Path $env:LOCALAPPDATA "womarchy-test\$Name" }
 $distros = (wsl.exe --list --quiet) -replace "`0", "" | Where-Object { $_ }
 if ($distros -contains $Name) { throw "$Name already exists; run: wsl --unregister $Name" }

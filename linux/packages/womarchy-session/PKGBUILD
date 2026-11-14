@@ -1,13 +1,13 @@
-# womarchy: session entry point for omarchy.exe (Omarchy on WSL)
+# womarchy: session entry point for whyprland.exe (Hyprland on WSL)
 pkgname=womarchy-session
 pkgver=0.1.0
-pkgrel=15
-pkgdesc='Starts the Omarchy desktop session for the omarchy.exe viewer on WSL (Hyprland wsl backend)'
+pkgrel=16
+pkgdesc='Starts the Hyprland desktop session for the whyprland.exe viewer on WSL (Hyprland wsl backend)'
 arch=(any)
-url='https://github.com/sytelus/womarchy'
+url='https://github.com/corexo/whyprland'
 license=(MIT)
 depends=(bash gawk hyprland python systemd util-linux wl-clipboard)
-optdepends=('uwsm: start the session the way Omarchy does (recommended)')
+optdepends=('uwsm: start the session through uwsm (recommended)')
 source=(womarchy-session womarchy-clipd womarchy-clipd.service mnt-wslgshm.mount x11-unix womarchy-x11-unix.service)
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
@@ -15,7 +15,7 @@ package() {
   install -Dm755 womarchy-session "$pkgdir/usr/bin/womarchy-session"
   install -Dm755 womarchy-clipd "$pkgdir/usr/bin/womarchy-clipd"
   install -Dm644 womarchy-clipd.service "$pkgdir/usr/lib/systemd/user/womarchy-clipd.service"
-  # started with every graphical session; ConditionEnvironment keeps it to omarchy.exe sessions
+  # started with every graphical session; ConditionEnvironment keeps it to whyprland.exe sessions
   install -dm755 "$pkgdir/usr/lib/systemd/user/graphical-session.target.wants"
   ln -s ../womarchy-clipd.service "$pkgdir/usr/lib/systemd/user/graphical-session.target.wants/womarchy-clipd.service"
   install -Dm644 mnt-wslgshm.mount "$pkgdir/usr/lib/systemd/system/mnt-wslgshm.mount"

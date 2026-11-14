@@ -1,8 +1,8 @@
 # Correlate per-frame timelines: Linux (send -> ack, from the Hyprland log) vs the viewer (recv -> ack).
 param([int]$Seconds = 8, [int]$Skip = 10, [int]$Count = 14)
-$env:OMARCHY_FRAME_TRACE = "1"
+$env:WHYPRLAND_FRAME_TRACE = "1"
 & "$PSScriptRoot\viewer-test.ps1" -Seconds $Seconds | Out-Null
-$env:OMARCHY_FRAME_TRACE = $null
+$env:WHYPRLAND_FRAME_TRACE = $null
 
 $viewer = @{}
 foreach ($line in Get-Content "$PSScriptRoot\out\viewer-stderr.log") {

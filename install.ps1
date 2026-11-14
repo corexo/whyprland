@@ -1,34 +1,34 @@
 <#
 .SYNOPSIS
-    Installs Omarchy (Arch Linux + Hyprland) as a GPU-accelerated desktop on Windows 11, using WSL.
+    Installs whyprland (Arch Linux + plain Hyprland) as a GPU-accelerated desktop on Windows 11, using WSL.
 
 .DESCRIPTION
     Run it from PowerShell (no administrator rights needed; Windows asks for them once if WSL itself
     has to be installed or updated):
 
-        irm https://raw.githubusercontent.com/sytelus/womarchy/main/install.ps1 | iex
+        irm https://raw.githubusercontent.com/corexo/whyprland/main/install.ps1 | iex
 
     Before changing anything it explains what it will do and asks for confirmation:
       1. WSL: installs it, or updates it to the tested version or newer, if needed. This affects all
          your WSL distros (they keep their files), restarts WSL, and may need a Windows restart.
-      2. Downloads omarchy.exe and the Omarchy WSL image (about 1.7 GB) from the latest release.
-      3. Runs `omarchy install`: imports the image as a new WSL distro named "Omarchy", asks you to pick
-         a user name and password, and adds a Start menu entry and the `omarchy` command.
-    Undo everything with:  omarchy uninstall
+      2. Downloads whyprland.exe and the Whyprland WSL image from the latest release.
+      3. Runs `whyprland install`: imports the image as a new WSL distro named "Whyprland", asks you to pick
+         a user name and password, and adds a Start menu entry and the `whyprland` command.
+    Undo everything with:  whyprland uninstall
 
 .PARAMETER Distro
-    Name of the WSL distro to create (default: Omarchy).
+    Name of the WSL distro to create (default: Whyprland).
 .PARAMETER Image
     Install from this .wsl file or https URL instead of the latest release.
 .PARAMETER Exe
-    Use this omarchy.exe instead of downloading it (for testing a build).
+    Use this whyprland.exe instead of downloading it (for testing a build).
 .PARAMETER Yes
     Don't ask for confirmation.
 .PARAMETER NoLauncher
-    Install only the distro: no Start menu entry, PATH entry or copy of omarchy.exe (for testing).
+    Install only the distro: no Start menu entry, PATH entry or copy of whyprland.exe (for testing).
 #>
 param(
-    [string]$Distro = "Omarchy",
+    [string]$Distro = "Whyprland",
     [string]$Image = "",
     [string]$Exe = "",
     [switch]$Yes,
@@ -38,16 +38,16 @@ param(
 # Native commands are checked through $LASTEXITCODE; with "Stop", Windows PowerShell 5.1 would turn any
 # stderr output of a redirected native command into a terminating error.
 $ErrorActionPreference = "Continue"
-$Release = "https://github.com/sytelus/womarchy/releases/latest/download"
-$TestedWsl = [version]"3.0.1"   # the WSL version Omarchy is developed and tested on
-$Docs = "https://github.com/sytelus/womarchy/blob/main/docs/TROUBLESHOOTING.md"
+$Release = "https://github.com/corexo/whyprland/releases/latest/download"
+$TestedWsl = [version]"3.0.1"   # the WSL version Whyprland is developed and tested on
+$Docs = "https://github.com/corexo/whyprland/blob/main/docs/TROUBLESHOOTING.md"
 
 function Say($text, $color = "Gray") { Write-Host $text -ForegroundColor $color }
 function Stop-Install($text) {
     Say "`n$text" Red
     Say "Help: $Docs"
     # `irm | iex` runs in the caller's session: return to the prompt instead of closing the window
-    throw "Omarchy was not installed."
+    throw "Whyprland was not installed."
 }
 
 # Installed WSL version, or $null when WSL is missing (or only the old Windows feature is present,
@@ -96,11 +96,11 @@ function Get-File($url, $dest) {
 }
 
 # --- what we are about to do -------------------------------------------------------------------------
-Say "`nOmarchy for WSL installer`n" Cyan
+Say "`nwhyprland installer`n" Cyan
 
 $build = [Environment]::OSVersion.Version.Build
 if ($build -lt 22000) {
-    Stop-Install "Omarchy needs Windows 11 (this is Windows build $build)."
+    Stop-Install "Whyprland needs Windows 11 (this is Windows build $build)."
 }
 
 $wsl = Get-WslVersion
@@ -111,17 +111,17 @@ if (-not $wsl) {
     $steps += "Install WSL (Windows Subsystem for Linux). Windows asks for administrator permission and you will probably have to restart Windows, then run this installer again."
 } elseif ($wsl -lt $TestedWsl) {
     $wslAction = "update"
-    $steps += "Update WSL from $wsl to the latest version (at least $TestedWsl, which Omarchy is tested on). This applies to ALL your WSL distros: they keep their files, but WSL restarts (anything running in WSL stops) and Windows asks for administrator permission. See $Docs for known issues after the update."
+    $steps += "Update WSL from $wsl to the latest version (at least $TestedWsl, which Whyprland is tested on). This applies to ALL your WSL distros: they keep their files, but WSL restarts (anything running in WSL stops) and Windows asks for administrator permission. See $Docs for known issues after the update."
 }
-# Re-running the installer over an existing install keeps the distro and only updates omarchy.exe and
-# its shortcuts (`omarchy install` skips the image when the distro exists).
+# Re-running the installer over an existing install keeps the distro and only updates whyprland.exe and
+# its shortcuts (`whyprland install` skips the image when the distro exists).
 $existing = $wsl -and (Test-Distro $Distro)
-if (-not $Exe) { $steps += "Download omarchy.exe from $Release." }
+if (-not $Exe) { $steps += "Download whyprland.exe from $Release." }
 if ($existing) {
-    $steps += "Keep your existing '$Distro' distro as it is, and update omarchy.exe, the Start menu entry and the 'omarchy' command. (To update the Linux side, run 'omarchy update'.)"
+    $steps += "Keep your existing '$Distro' distro as it is, and update whyprland.exe, the Start menu entry and the 'whyprland' command. (To update the Linux side, run 'whyprland update'.)"
 } else {
-    if (-not $Image) { $steps += "Download the Omarchy image (about 1.7 GB; it needs about 7 GB of disk once installed)." }
-    $steps += "Create a new WSL distro named '$Distro' (your other WSL distros are not touched), ask you for a user name and password, and add 'Omarchy' to the Start menu and the 'omarchy' command."
+    if (-not $Image) { $steps += "Download the Whyprland image." }
+    $steps += "Create a new WSL distro named '$Distro' (your other WSL distros are not touched), ask you for a user name and password, and add 'Whyprland' to the Start menu and the 'whyprland' command."
 }
 
 if ($wsl) { Say "WSL $wsl is installed." }
@@ -129,7 +129,7 @@ Say "This installer will:"
 $i = 1
 foreach ($s in $steps) { Say ("  {0}. {1}" -f $i, $s); $i++ }
 Say "`nRequirements: a GPU driver with WSL support (current NVIDIA, AMD and Intel drivers have it)."
-Say "To remove Omarchy later:  omarchy uninstall`n"
+Say "To remove Whyprland later:  whyprland uninstall`n"
 
 if (-not $Yes) {
     $answer = Read-Host "Continue? [y/N]"
@@ -157,34 +157,34 @@ if ($wslAction -eq "install") {
 }
 Say "WSL $wsl is ready."
 
-# --- 2. omarchy.exe -------------------------------------------------------------------------------------
-$work = Join-Path $env:TEMP ("omarchy-install-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+# --- 2. whyprland.exe -------------------------------------------------------------------------------------
+$work = Join-Path $env:TEMP ("whyprland-install-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
 New-Item -ItemType Directory -Force $work -ErrorAction Stop | Out-Null
 try {
     if ($Exe) {
         if (-not (Test-Path $Exe)) { Stop-Install "$Exe not found." }
-        Copy-Item $Exe (Join-Path $work "omarchy.exe") -ErrorAction Stop
+        Copy-Item $Exe (Join-Path $work "whyprland.exe") -ErrorAction Stop
     } else {
-        Say "`nDownloading omarchy.exe ..." Cyan
-        $exePath = Join-Path $work "omarchy.exe"
-        Get-File "$Release/omarchy.exe" $exePath
-        Get-File "$Release/omarchy.exe.sha256" "$exePath.sha256"
+        Say "`nDownloading whyprland.exe ..." Cyan
+        $exePath = Join-Path $work "whyprland.exe"
+        Get-File "$Release/whyprland.exe" $exePath
+        Get-File "$Release/whyprland.exe.sha256" "$exePath.sha256"
         $want = ((Get-Content "$exePath.sha256" -Raw) -split '\s+')[0].ToLower()
         $got = (Get-FileHash -Algorithm SHA256 $exePath).Hash.ToLower()
-        if ($got -ne $want) { Stop-Install "The omarchy.exe download is corrupt (SHA-256 mismatch); try again." }
+        if ($got -ne $want) { Stop-Install "The whyprland.exe download is corrupt (SHA-256 mismatch); try again." }
     }
 
-    # --- 3. the distro, first-run setup, Start menu entry and PATH (all done by omarchy.exe) ------------
-    Say "`nInstalling Omarchy ..." Cyan
+    # --- 3. the distro, first-run setup, Start menu entry and PATH (all done by whyprland.exe) ------------
+    Say "`nInstalling Whyprland ..." Cyan
     $installArgs = @("install")
     if ($Image) { $installArgs += $Image }
-    if ($Distro -ne "Omarchy") { $installArgs += @("--distro", $Distro) }
+    if ($Distro -ne "Whyprland") { $installArgs += @("--distro", $Distro) }
     if ($NoLauncher) { $installArgs += "--no-launcher" }
-    & (Join-Path $work "omarchy.exe") @installArgs
-    if ($LASTEXITCODE -ne 0) { Stop-Install "omarchy install failed (exit code $LASTEXITCODE)." }
+    & (Join-Path $work "whyprland.exe") @installArgs
+    if ($LASTEXITCODE -ne 0) { Stop-Install "whyprland install failed (exit code $LASTEXITCODE)." }
 } finally {
     Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
 }
 
-Say "`nDone. Start Omarchy from the Start menu, or type 'omarchy' in a new terminal." Green
-Say "To come back to Windows, log out (Super+Escape opens the system menu); Ctrl+Alt+End minimises Omarchy." Green
+Say "`nDone. Start Whyprland from the Start menu, or type 'whyprland' in a new terminal." Green
+Say "To come back to Windows, log out of Hyprland; Ctrl+Alt+End minimises the desktop." Green

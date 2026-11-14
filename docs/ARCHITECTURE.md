@@ -23,7 +23,7 @@ reasoning behind the design see [FEASIBILITY.md](FEASIBILITY.md); for the wire f
 
 | Component | Where | What it does |
 |---|---|---|
-| `omarchy.exe` | [windows/omarchy](../windows/omarchy) (Rust) | Viewer, launcher and installer. Starts the session, shows outputs, forwards input, syncs the clipboard, follows display changes. Also `install`, `uninstall` and `status`. |
+| `omarchy.exe` | [windows/whyprland](../windows/whyprland) (Rust) | Viewer, launcher and installer. Starts the session, shows outputs, forwards input, syncs the clipboard, follows display changes. Also `install`, `uninstall` and `status`. |
 | aquamarine `wsl` backend | [patches/aquamarine](../patches/aquamarine) | A new aquamarine backend. Its outputs are what the viewer reports as monitors. It listens on hvsocket, authenticates the viewer, sends frames and cursors, and turns viewer input into libinput-like events. |
 | aquamarine shm allocator | same | CPU output buffers for backends without DRM: files on WSLg's DAX share, or memfd. |
 | Hyprland patches | [patches/hyprland](../patches/hyprland) | Composite without DRM (surfaceless EGL), read damaged regions back into shm buffers, CPU cursor buffers, screen capture without dmabuf, per-output absolute pointer motion. |

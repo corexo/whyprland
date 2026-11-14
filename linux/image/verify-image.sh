@@ -1,11 +1,11 @@
 #!/bin/bash
-# Verify an installed womarchy image (after OOBE). Does not start Hyprland.
-#   wsl -d omarchy-test -u root -e bash <repo>/linux/image/verify-image.sh
-#   wsl -d omarchy-test          -e bash <repo>/linux/image/verify-image.sh
+# Verify an installed whyprland image (after OOBE). Does not start Hyprland.
+#   wsl -d whyprland-test -u root -e bash <repo>/linux/image/verify-image.sh
+#   wsl -d whyprland-test          -e bash <repo>/linux/image/verify-image.sh
 # As root it checks the system; as a user it checks that user's session.
 # Prints PASS/FAIL/WARN per check; exits non-zero if any FAIL.
 set -uo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/omarchy-key.env"   # OMARCHY_KEY_FPR
+source "$(dirname "${BASH_SOURCE[0]}")/pins.env"   # WOMARCHY_KEY_FPR
 fails=0
 pass() { printf 'PASS  %s\n' "$*"; }
 fail() { printf 'FAIL  %s\n' "$*"; fails=$((fails + 1)); }
@@ -17,17 +17,20 @@ if (( EUID == 0 )); then
   [[ $state == running ]] && pass "systemctl is-system-running = running" || fail "systemctl is-system-running = $state"
   failed=$(systemctl --failed --no-legend --plain | awk '{print $1}' | paste -sd' ')
   [[ -z $failed ]] && pass "no failed system units" || fail "failed system units: $failed"
-  check "pacman -Qi omarchy" pacman -Qi omarchy
-  pacman -Q omarchy 2>&1 | grep -q '^warning' && fail "pacman warns: $(pacman -Q omarchy 2>&1 | head -1)" || pass "pacman sync DBs present (no warnings)"
-  v=$(omarchy-version 2>/dev/null) && pass "omarchy-version = $v" || fail "omarchy-version"
+  check "pacman -Qi hyprland" pacman -Qi hyprland
+  pacman -Q hyprland 2>&1 | grep -q '^warning' && fail "pacman warns: $(pacman -Q hyprland 2>&1 | head -1)" || pass "pacman sync DBs present (no warnings)"
   check "womarchy-compat installed" pacman -Qi womarchy-compat
+  om=$(pacman -Qq | grep -i '^omarchy' | paste -sd' ')
+  [[ -z $om ]] && pass "no Omarchy packages installed" || fail "Omarchy packages installed: $om"
+  grep -qE '^[[:space:]]*Server[[:space:]]*=' /etc/pacman.d/mirrorlist && pass "Arch mirrorlist has an active Server" ||
+    fail "no active Server in /etc/pacman.d/mirrorlist"
   for p in limine snapper linux; do
     pacman -Qq "$p" 2>/dev/null | grep -qx "$p" && fail "$p is installed" || pass "$p not installed"
   done
   first_repo=$(grep -m1 -E '^\[[a-z]+\]' <(grep -v '^\[options\]' /etc/pacman.conf))
   [[ $first_repo == "[womarchy]" ]] && pass "[womarchy] is the first repo" || fail "first repo is $first_repo"
   check "IgnorePkg for kernels" grep -q '^IgnorePkg = linux linux-lts' /etc/pacman.conf
-  check "pacman keyring initialised (OOBE)" pacman-key --list-keys "$OMARCHY_KEY_FPR"
+  check "pacman keyring initialised (OOBE)" pacman-key --list-keys "$WOMARCHY_KEY_FPR"
   # [womarchy] signatures: the pinned womarchy key, locally trusted; signed dbs required.
   check "womarchy-keyring installed" pacman -Q womarchy-keyring
   validity=$(gpg --homedir /etc/pacman.d/gnupg --no-permission-warning --batch --with-colons --list-keys "$WOMARCHY_KEY_FPR" 2>/dev/null |
@@ -53,7 +56,7 @@ if (( EUID == 0 )); then
   repo=/var/lib/womarchy/repo
   block=$(awk '/^\[womarchy\]/{f=1;next} /^\[/{f=0} f' /etc/pacman.conf)
   hosted=$(sed -n 's/^WOMARCHY_REPO_URL=//p' /etc/womarchy/config 2>/dev/null | tail -n1)
-  hosted=${hosted:-https://github.com/sytelus/womarchy/releases/download/packages}
+  hosted=${hosted:-https://github.com/corexo/whyprland/releases/download/packages}
   [[ $(grep -m1 '^Server' <<<"$block") == "Server = $hosted" ]] &&
     grep -qx "Server = file://$repo" <<<"$block" && pass "[womarchy] servers: hosted + file://$repo" ||
     fail "[womarchy] servers: $(grep Server <<<"$block" | paste -sd' ')"
@@ -63,11 +66,12 @@ if (( EUID == 0 )); then
   old=$(find $repo -name '*.old' | head -3)
   [[ -z $old ]] && pass "no *.old in the repo" || fail "*.old in repo: $old"
   [[ ! -e /var/cache/womarchy-repo ]] && pass "no repo left in /var/cache" || fail "/var/cache/womarchy-repo still exists"
-  # The post-update hook's path on the live system: reassert must succeed, keep the
-  # system running, and leave Omarchy's install log closed (0640, not 0666).
+  # womarchy-update's path on the live system: reassert must succeed, keep the
+  # system running, and keep its log closed (0640).
+  check "womarchy-update installed" test -x /usr/bin/womarchy-update
   if out=$(womarchy-apply-system --reassert 2>&1); then pass "womarchy-apply-system --reassert (live)"; else fail "reassert: $out"; fi
-  m=$(stat -c %a /var/log/omarchy-install.log 2>/dev/null)
-  [[ $m == 640 ]] && pass "omarchy-install.log mode 640 after reassert" || fail "omarchy-install.log mode ${m:-missing}"
+  m=$(stat -c %a /var/log/womarchy-apply-system.log 2>/dev/null)
+  [[ $m == 640 ]] && pass "womarchy-apply-system.log mode 640 after reassert" || fail "womarchy-apply-system.log mode ${m:-missing}"
   state=$(systemctl is-system-running 2>/dev/null)
   [[ $state == running ]] && pass "still running after reassert" || fail "after reassert: $state"
   check "settings file /etc/womarchy/config" grep -q '^WOMARCHY_DOCKER=' /etc/womarchy/config
@@ -76,8 +80,6 @@ if (( EUID == 0 )); then
     s=$(systemctl is-enabled "$u.service" 2>/dev/null)
     [[ $s == masked || -z $s || $s == not-found ]] && pass "$u: ${s:-absent}" || fail "$u: $s"
   done
-  check "docker.socket enabled" systemctl is-enabled docker.socket
-  jq -e 'has("dns") | not' /etc/docker/daemon.json >/dev/null 2>&1 && pass "docker daemon.json has no dns key" || fail "docker daemon.json dns"
   check "binfmt drop-in" test -f /etc/systemd/system/systemd-binfmt.service.d/10-womarchy-wsl.conf
   if pacman -Qq womarchy-session &>/dev/null; then
     mountpoint -q /mnt/wslgshm && pass "mnt-wslgshm.mount mounted" || fail "mnt-wslgshm.mount: $(systemctl is-active mnt-wslgshm.mount)"
@@ -125,32 +127,17 @@ if (( EUID == 0 )); then
     pass "nothing added to WSL's shared /usr/lib/modules/$(uname -r)"
   [[ $(readlink /etc/pacman.d/hooks/60-depmod.hook) == /dev/null ]] && pass "kmod depmod pacman hook disabled" ||
     fail "kmod depmod hook active (would rewrite WSL's VM-wide module indexes)"
-  warn "known: 'omarchy update' ends with 'Linux kernel has been updated. Reboot?' on WSL; answer no (see INSTALL-NOTES)"
 else
   export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
   echo "user $(id -un) uid $(id -u) home $HOME"
   s=$(systemctl --user is-system-running 2>/dev/null)
   [[ $s == running ]] && pass "user manager running" || fail "user manager: $s ($(systemctl --user --failed --no-legend --plain | awk '{print $1}' | paste -sd' '))"
-  check "~/.config/hypr/hyprland.lua (Omarchy)" test -f ~/.config/hypr/hyprland.lua
+  check "~/.config/hypr/hyprland.lua" test -f ~/.config/hypr/hyprland.lua
   check "~/.config/hypr/womarchy.lua" test -f ~/.config/hypr/womarchy.lua
-  check "bindings.lua requires hypr.womarchy" grep -q 'require("hypr.womarchy")' ~/.config/hypr/bindings.lua
+  check "hyprland.lua requires womarchy" grep -q 'require("womarchy")' ~/.config/hypr/hyprland.lua
   check "monitors.lua reads womarchy-session rules" grep -q 'womarchy/monitors.lua' ~/.config/hypr/monitors.lua
   check "uwsm env.d/10-womarchy" test -f ~/.config/uwsm/env.d/10-womarchy
-  jq -e '(.disabledPlugins | index("omarchy.idle")) and ([.bar.layout[][]?.id] | index("omarchy.network") | not)' \
-    ~/.config/omarchy/shell.json >/dev/null && pass "shell.json: idle off, network widget dropped" || fail "shell.json"
-  perl -0pe 's{^\s*//[^\n]*(\n|$)}{}mg' ~/.config/omarchy/extensions/omarchy-menu.jsonc |
-    jq -e '.["system.suspend"].when == "false" and .["system.shutdown"].action == "omarchy-system-logout"' >/dev/null &&
-    pass "menu overlay: suspend hidden, shutdown -> logout" || fail "menu overlay"
-  check "post-update hook" test -x ~/.config/omarchy/hooks/post-update.d/10-womarchy
-  nmo=$(bash -c '. ~/.config/uwsm/env.d/10-womarchy; command -v nm-online')
-  [[ $nmo == /usr/lib/womarchy/bin/nm-online ]] && timeout 5 "$nmo" -q -x -t 30 &&
-    pass "session nm-online: $nmo reports online (no Wi-Fi toast)" || fail "session nm-online: ${nmo:-none}"
-  check "Omarchy theme set" test -s ~/.local/state/omarchy/current/theme.name
-  check "omarchy-provision-user done" test -f ~/.local/state/omarchy/done/finalize-user
   check "womarchy-provision-user done" test -f ~/.local/state/womarchy/provisioned
-  if grep -qs '^WOMARCHY_PROFILE=lite' /etc/womarchy/profile; then
-    check "lite: preinstalls-removed marker" test -f ~/.local/state/omarchy/preinstalls-removed
-  fi
   command -v hyprctl >/dev/null && pass "hyprctl present ($(hyprctl version -j 2>/dev/null | jq -r .tag 2>/dev/null || echo 'no instance'))" || warn "hyprctl absent"
 
   ume=$(systemctl --user show-environment 2>/dev/null)

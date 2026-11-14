@@ -21,7 +21,14 @@ ExecStart=
 ExecStart=-/usr/lib/systemd/systemd-binfmt
 EOF
 
-nice -n 10 pacman -Syu --noconfirm --needed \
+# Build against the same Arch archive snapshot the image installs from (pins.env), so
+# hyprland/aquamarine/mesa link the Hypr libraries and LLVM the image really has.
+# -Syyuu: a distro that was newer is moved back to the snapshot.
+source "$(dirname "${BASH_SOURCE[0]}")/pins.env"
+[[ $ARCH_SNAPSHOT =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]] || { echo "bad ARCH_SNAPSHOT in pins.env" >&2; exit 1; }
+[[ -f /etc/pacman.d/mirrorlist.womarchy-orig ]] || cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.womarchy-orig
+echo "Server = https://archive.archlinux.org/repos/$ARCH_SNAPSHOT/\$repo/os/\$arch" >/etc/pacman.d/mirrorlist
+nice -n 10 pacman -Syyuu --noconfirm --needed \
   arch-install-scripts base-devel git jq xz zstd python devtools
 
 # makepkg refuses to run as root; UID 1790 avoids colliding with any other distro's users.

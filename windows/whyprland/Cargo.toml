@@ -1,12 +1,12 @@
 [package]
-name = "omarchy"
-version = "0.2.0"
+name = "whyprland"
+version = "0.3.0"
 edition = "2021"
-description = "Windows launcher and viewer for Omarchy running in WSL2 (womarchy)"
+description = "Windows launcher and viewer for Hyprland on Arch Linux in WSL2 (whyprland, a fork of womarchy)"
 license = "MIT"
 
 [[bin]]
-name = "omarchy"
+name = "whyprland"
 path = "src/main.rs"
 
 [dependencies.windows]

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""womarchy-clipd: shares the session's Wayland clipboard with Windows through omarchy.exe (text and
+"""womarchy-clipd: shares the session's Wayland clipboard with Windows through whyprland.exe (text and
 images).
 
-Listens on vsock port WOMARCHY_VSOCK_PORT + 1 for omarchy.exe. The session token WOMARCHY_CLIP_TOKEN
+Listens on vsock port WOMARCHY_VSOCK_PORT + 1 for whyprland.exe. The session token WOMARCHY_CLIP_TOKEN
 (64 hex chars) authenticates both ends: the viewer sends its first half (CLIP_HELLO), we answer with the
 second half (CLIP_WELCOME); then both sides send CLIP_TEXT (UTF-8, LF line endings), or CLIP_IMAGE (a
 PNG) when the clipboard holds an image and no text, whenever their clipboard changes. See

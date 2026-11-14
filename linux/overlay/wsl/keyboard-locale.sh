@@ -1,7 +1,6 @@
 # womarchy WSL leaf: keyboard layouts + locale (the ISO's archinstall step).
-# Omarchy's Hyprland input config reads XKBLAYOUT/XKBVARIANT from
-# /etc/vconsole.conf; womarchy's ~/.config/hypr/womarchy.lua adds XKBOPTIONS
-# (e.g. the layout toggle) to Omarchy's kb_options.
+# ~/.config/hypr/womarchy.lua reads XKBLAYOUT/XKBVARIANT/XKBOPTIONS (e.g. the
+# layout toggle) from /etc/vconsole.conf into Hyprland's input config.
 # Inputs (env):
 #   WOMARCHY_XKB_LAYOUT   comma list, e.g. "us,ru"
 #   WOMARCHY_XKB_VARIANT  comma list aligned with the layouts, e.g. ",phonetic"
@@ -75,7 +74,7 @@ keyboard() {
   # No KEYMAP=: WSL has no virtual consoles, and an XKB name that is not also a
   # console keymap would fail systemd-vconsole-setup.
   {
-    echo "# Managed by womarchy (wsl/keyboard-locale.sh); read by Omarchy's and womarchy's hypr input config"
+    echo "# Managed by womarchy (wsl/keyboard-locale.sh); read by ~/.config/hypr/womarchy.lua"
     echo "XKBLAYOUT=$layouts"
     [[ ${variants//,/} ]] && echo "XKBVARIANT=$variants"
     [[ $options ]] && echo "XKBOPTIONS=$options"

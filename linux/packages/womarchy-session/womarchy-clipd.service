@@ -1,5 +1,5 @@
 # Clipboard sharing between the session and Windows (see womarchy-clipd). Started with the graphical
-# session that uwsm brings up; only in sessions launched by omarchy.exe (they carry WOMARCHY_TOKEN).
+# session that uwsm brings up; only in sessions launched by whyprland.exe (they carry WOMARCHY_TOKEN).
 [Unit]
 Description=womarchy clipboard bridge (Wayland <-> Windows)
 PartOf=graphical-session.target

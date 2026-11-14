@@ -1,5 +1,5 @@
-# End-to-end dev test: run omarchy.exe windowed against the lab distro, dump a frame, then end the
-# session and check omarchy.exe exits with the session's exit code.
+# End-to-end dev test: run whyprland.exe windowed against the lab distro, dump a frame, then end the
+# session and check whyprland.exe exits with the session's exit code.
 #   -EndBy close: close the viewer window (what a user does; the viewer sends QUIT)
 #   -EndBy kill:  SIGTERM Hyprland from the Linux side
 #   -DumpAfter:   dump the Nth frame of the first output (or the last one, if the session ends sooner)
@@ -7,7 +7,7 @@
 param([int]$Seconds = 20, [string]$Size = "1280x720", [string]$Extra = "", [int]$DumpAfter = 100000,
       [string]$Session = "/usr/bin/womarchy-session", [string]$EndBy = "close", [string]$Distro = "womarchy-lab")
 $root = Split-Path -Parent $PSScriptRoot   # repo root
-$exe  = "$root\windows\omarchy\target\release\omarchy.exe"
+$exe  = "$root\windows\whyprland\target\release\whyprland.exe"
 $out  = "$root\lab\out"
 New-Item -ItemType Directory -Force $out | Out-Null
 Remove-Item "$out\viewer-frame.bmp", "$out\viewer-stderr.log" -ErrorAction SilentlyContinue

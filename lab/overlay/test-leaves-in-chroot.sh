@@ -6,13 +6,8 @@ W=/usr/lib/womarchy/wsl
 ok() { printf 'PASS  %s\n' "$*"; }; no() { printf 'FAIL  %s\n' "$*"; }
 t() { local d=$1; shift; if "$@"; then ok "$d"; else no "$d"; fi; }
 
-echo "== apply-system plan (loud parser)"
-t "--list works on the 4.0.4 tree" bash -c 'womarchy-apply-system --list >/dev/null'
-mkdir -p /tmp/inst/config /tmp/inst/post-install
-printf 'run_logged "$OMARCHY_INSTALL/config/a.sh"\nsource "$OMARCHY_INSTALL/config/b.sh"\n' >/tmp/inst/config/all.sh
-out=$(OMARCHY_INSTALL=/tmp/inst womarchy-apply-system --list 2>&1); rc=$?
-t "unknown all.sh line fails loudly (rc=$rc)" test $rc -ne 0
-grep -q 'cannot classify' <<<"$out" && ok "message: $(grep -m1 cannot <<<"$out")" || no "no message: $out"
+echo "== apply-system plan"
+t "--list prints the WSL leaves" bash -c 'womarchy-apply-system --list | grep -q "wsl/pacman.sh"'
 
 echo "== keyboard-locale"
 kl() { env "$@" bash $W/keyboard-locale.sh; }
@@ -56,7 +51,7 @@ t "idempotent: one IgnorePkg line" test "$(grep -c '^IgnorePkg = linux linux-lts
 
 echo "== settings + masks"
 womarchy-apply-system --reassert >/dev/null 2>&1
-t "log mode 640 after reassert" test "$(stat -c %a /var/log/omarchy-install.log)" == 640
+t "log mode 640 after reassert" test "$(stat -c %a /var/log/womarchy-apply-system.log)" == 640
 WOMARCHY_DOCKER=0 womarchy-apply-system --reassert >/dev/null 2>&1
 t "WOMARCHY_DOCKER=0 persisted" grep -qx 'WOMARCHY_DOCKER=0' /etc/womarchy/config
 t "docker.socket disabled" bash -c '! systemctl is-enabled docker.socket >/dev/null 2>&1'
@@ -69,11 +64,8 @@ womarchy-apply-system --reassert >/dev/null 2>&1
 t "user-unmasked cups.service stays unmasked" test ! -e /etc/systemd/system/cups.service
 t "...and is recorded as released" grep -qx cups.service /var/lib/womarchy/released-units
 t "NetworkManager still masked" test "$(readlink /etc/systemd/system/NetworkManager.service)" == /dev/null
-WOMARCHY_FIREWALL=1 womarchy-apply-system --reassert >/dev/null 2>&1
-t "firewall=1 lifts womarchy's ufw mask" test ! -e /etc/systemd/system/ufw.service
-WOMARCHY_FIREWALL=0 womarchy-apply-system --reassert >/dev/null 2>&1
-t "firewall=0 masks ufw again" test "$(readlink /etc/systemd/system/ufw.service)" == /dev/null
-t "WOMARCHY_FIREWALL=x rejected" bash -c '! WOMARCHY_FIREWALL=x womarchy-apply-system --reassert >/dev/null 2>&1'
+t "WOMARCHY_DOCKER=x rejected" bash -c '! WOMARCHY_DOCKER=x womarchy-apply-system --reassert >/dev/null 2>&1'
+t "Arch mirrorlist has an active Server" grep -qE '^Server = ' /etc/pacman.d/mirrorlist
 
 echo "== GPU generator"
 g=/usr/lib/systemd/user-environment-generators/60-womarchy-gpu

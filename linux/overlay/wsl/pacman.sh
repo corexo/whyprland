@@ -1,7 +1,14 @@
-# womarchy WSL leaf: layer WSL invariants onto Omarchy's pacman.conf.
-# Omarchy (post-install/pacman.sh, `omarchy refresh pacman`, channel switches)
-# rewrites /etc/pacman.conf from its template, so this is idempotent and is
-# re-run from the pre-refresh-pacman and post-update hooks.
+# womarchy WSL leaf: layer WSL invariants onto Arch's pacman.conf. Idempotent;
+# re-run after every update (womarchy-update -> womarchy-apply-system).
+#  - Mirrors: the image is installed from a dated Arch Linux Archive snapshot
+#    (linux/image/pins.env), but installed systems follow current Arch: when
+#    /etc/pacman.d/mirrorlist has no active Server (pacman-mirrorlist ships it
+#    all commented out), Arch's geo mirror is enabled. An admin's own Server
+#    lines are kept. Risk: current Arch can move Hyprland's libraries
+#    (hyprutils, hyprlang, ...) past what [womarchy]'s patched hyprland and
+#    aquamarine were built against. Their soname dependencies make `pacman -Syu`
+#    refuse such an update (nothing changes) until [womarchy] publishes rebuilds;
+#    an ABI break without a soname bump would only show at runtime.
 #  - IgnorePkg: WSL boots Microsoft's kernel; never pull a kernel/DKMS/firmware
 #    in on -Syu. (Not linux-* as a whole: linux-api-headers is a glibc dep.)
 #  - [womarchy] before [core], so its hyprland/aquamarine/mesa builds win over
@@ -21,13 +28,13 @@ CONF=/etc/pacman.conf
 REPO_DIR=/var/lib/womarchy/repo
 OLD_REPO_DIR=/var/cache/womarchy-repo   # images built before 2026-10: moved out of /var/cache
 # The hosted repo: WOMARCHY_REPO_URL from womarchy-apply-system, or from
-# /etc/womarchy/config when run on its own (pre-refresh-pacman hook, OOBE).
+# /etc/womarchy/config when run on its own (OOBE).
 if [[ -z ${WOMARCHY_REPO_URL:-} && -f /etc/womarchy/config ]]; then
   WOMARCHY_REPO_URL=$(sed -n 's/^WOMARCHY_REPO_URL=//p' /etc/womarchy/config | tail -n1)
 fi
-HOSTED=${WOMARCHY_REPO_URL:-https://github.com/sytelus/womarchy/releases/download/packages}
+HOSTED=${WOMARCHY_REPO_URL:-https://github.com/corexo/whyprland/releases/download/packages}
 [[ $HOSTED =~ ^(https://[A-Za-z0-9.-]+|file://)/[A-Za-z0-9._~/%+-]*$ ]] || { echo "womarchy (wsl/pacman.sh): invalid WOMARCHY_REPO_URL '$HOSTED'" >&2; exit 1; }
-IGNORE='IgnorePkg = linux linux-lts linux-zen linux-hardened linux-headers linux-omarchy linux-omarchy-headers linux-t2* linux-ptl* linux-firmware linux-firmware-* *-dkms'
+IGNORE='IgnorePkg = linux linux-lts linux-zen linux-hardened linux-headers linux-t2* linux-ptl* linux-firmware linux-firmware-* *-dkms'
 
 SIGNED_SIGLEVEL='PackageOptional DatabaseRequired'
 LEGACY_SIGLEVEL='Optional TrustAll'
@@ -63,6 +70,14 @@ install -d -m 0755 -o root -g root "${REPO_DIR%/*}"
 chown -R root:root "$REPO_DIR"
 chmod -R u=rwX,go=rX "$REPO_DIR"
 rm -f "$REPO_DIR"/*.old
+
+# --- Arch mirrors ---------------------------------------------------------------------------
+MIRRORLIST=/etc/pacman.d/mirrorlist
+if ! grep -qE '^[[:space:]]*Server[[:space:]]*=' "$MIRRORLIST" 2>/dev/null; then
+  install -d -m 0755 "${MIRRORLIST%/*}"
+  printf '%s\n' '# Managed by womarchy (wsl/pacman.sh) while no other Server line is active.' \
+    'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' >>"$MIRRORLIST"
+fi
 
 # --- IgnorePkg (must live in [options]); replace any previous womarchy line ----------
 sed -i '/^# womarchy: kernels come from WSL/d; /^IgnorePkg = linux linux-lts /d' "$CONF"

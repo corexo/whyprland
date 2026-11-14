@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# womarchy-session: what omarchy.exe runs inside the distro (`wsl.exe -d <distro> --exec womarchy-session`).
+# womarchy-session: what whyprland.exe runs inside the distro (`wsl.exe -d <distro> --exec womarchy-session`).
 #
-# 1. prints the handshake line "WOMARCHY_VMID=<guid>" on stdout (omarchy.exe connects to that VM over hvsocket)
+# 1. prints the handshake line "WOMARCHY_VMID=<guid>" on stdout (whyprland.exe connects to that VM over hvsocket)
 # 2. prepares the session: shared-memory share, per-launch monitor rules from the Windows layout, clean PATH
-# 3. starts Omarchy's session the way its display manager would (uwsm → Hyprland) with Hyprland's wsl
+# 3. starts the Hyprland session the way a display manager would (uwsm → Hyprland) with Hyprland's wsl
 #    backend selected, waits for it to end, and exits with the compositor's status
 #
-# In (from omarchy.exe via WSLENV): WOMARCHY_TOKEN, WOMARCHY_CLIP_TOKEN, WOMARCHY_VSOCK_PORT, WOMARCHY_MONITORS
+# In (from whyprland.exe via WSLENV): WOMARCHY_TOKEN, WOMARCHY_CLIP_TOKEN, WOMARCHY_VSOCK_PORT, WOMARCHY_MONITORS
 # Optional: WOMARCHY_TRACE=1 (backend frame trace), WOMARCHY_NO_UWSM=1 (run start-hyprland directly)
-# `womarchy-session --update-monitors`: omarchy.exe, when the Windows display layout changes mid-session
+# `womarchy-session --update-monitors`: whyprland.exe, when the Windows display layout changes mid-session
 # Logs: ~/.cache/womarchy/session.log (this script and uwsm), hyprland.log (the last compositor log)
 set -u
 
@@ -38,7 +38,7 @@ write_monitor_rules() { # <file>
     print "hl.monitor({ output = \"\", mode = \"preferred\", position = \"auto\", scale = \"auto\" })"
     for (i = 1; i <= k; i++)
       printf "hl.monitor({ output = \"WSL-%s\", mode = \"preferred\", position = \"%dx%d\", scale = \"%.6g\" })\n", id[i], lx[i], ly[i], s[i]
-    # XWayland apps: Omarchy renders them unscaled and lets GDK scale; 2 on HiDPI desktops, 1 otherwise
+    # XWayland apps: rendered unscaled, GDK scales them; 2 on HiDPI desktops, 1 otherwise
     printf "hl.env(\"GDK_SCALE\", \"%d\")\n", (maxs >= 1.5 ? 2 : 1)
   }
   # One axis: pos/len are physical, out[] gets logical positions. Visit outputs in physical order; an
@@ -75,7 +75,7 @@ write_monitor_rules() { # <file>
 }
 
 if [ "${1:-}" = --update-monitors ]; then
-  # omarchy.exe, mid-session: the Windows display layout changed. Rewrite the rules and reload Hyprland.
+  # whyprland.exe, mid-session: the Windows display layout changed. Rewrite the rules and reload Hyprland.
   RUNTIME=/run/user/$(id -u) # never XDG_RUNTIME_DIR blindly: without systemd it is WSLg's shared one
   [ -d "$RUNTIME" ] || exit 1
   mkdir -p "$RUNTIME/womarchy" "$LOG_DIR"
@@ -89,9 +89,9 @@ fi
 mkdir -p "$LOG_DIR"
 LOG=$LOG_DIR/session.log
 [ -f "$LOG" ] && mv -f "$LOG" "$LOG.1"
-# fd 3: stdout to omarchy.exe (handshake only); fd 4: the Windows console, for errors the user should see
+# fd 3: stdout to whyprland.exe (handshake only); fd 4: the Windows console, for errors the user should see
 exec 3>&1 4>&2 >>"$LOG" 2>&1
-# omarchy.exe going away (killed, crashed) hangs us up; uwsm stops the compositor on the same signal, and
+# whyprland.exe going away (killed, crashed) hangs us up; uwsm stops the compositor on the same signal, and
 # we still want to finish below (a handler, unlike ignoring, is not inherited by uwsm)
 HUNGUP=0
 trap 'HUNGUP=1' HUP
@@ -104,9 +104,9 @@ die() {
 
 say "womarchy-session starting: user $(id -un) ($(id -u)), distro ${WSL_DISTRO_NAME:-?}"
 [ -n "${WOMARCHY_TOKEN:-}" ] && [ -n "${WOMARCHY_CLIP_TOKEN:-}" ] && [ -n "${WOMARCHY_VSOCK_PORT:-}" ] ||
-  die "WOMARCHY_TOKEN/WOMARCHY_CLIP_TOKEN/WOMARCHY_VSOCK_PORT are not set; start Omarchy with omarchy.exe"
+  die "WOMARCHY_TOKEN/WOMARCHY_CLIP_TOKEN/WOMARCHY_VSOCK_PORT are not set; start whyprland with whyprland.exe"
 if [ "$(id -u)" = 0 ] && [ -e /usr/lib/womarchy/oobe.sh ] && [ ! -f /var/lib/womarchy/oobe-done ]; then
-  # freshly installed image: WSL only runs its first-run setup for interactive shells, so omarchy.exe
+  # freshly installed image: WSL only runs its first-run setup for interactive shells, so whyprland.exe
   # runs it (it recognises this line and status 75) and starts us again
   say "first-run setup has not run yet"
   echo "WOMARCHY_NEEDS_SETUP" >&3
@@ -117,7 +117,7 @@ fi
 VMID=$(wslinfo --vm-id 2>/dev/null | tr -d '\r')
 [ -n "$VMID" ] || die "wslinfo --vm-id failed (needs WSL 2.5 or newer)"
 echo "WOMARCHY_VMID=$VMID" >&3
-exec 3>&- # nothing else goes to omarchy.exe's pipe
+exec 3>&- # nothing else goes to whyprland.exe's pipe
 
 RUNTIME=/run/user/$(id -u) # the systemd user runtime dir (WSLg's shared one when systemd is off)
 [ -d "$RUNTIME" ] || die "$RUNTIME does not exist (is systemd enabled in /etc/wsl.conf?)"
@@ -125,13 +125,13 @@ export XDG_RUNTIME_DIR=$RUNTIME
 systemctl --user show-environment >/dev/null 2>&1 ||
   die "the systemd user manager is not reachable (is systemd enabled in /etc/wsl.conf?)"
 
-# One session at a time. omarchy.exe never starts a second viewer for a running desktop, so a held lock
+# One session at a time. whyprland.exe never starts a second viewer for a running desktop, so a held lock
 # means the previous session is still winding down (its viewer went away): wait for it to end.
 mkdir -p "$RUNTIME/womarchy"
 exec 5>"$RUNTIME/womarchy/session.lock"
 if ! flock -n 5; then
   say "waiting for the previous session to end"
-  flock -w 45 5 || die "a previous Omarchy session is still running (log: $LOG_DIR/session.log.1)"
+  flock -w 45 5 || die "a previous whyprland session is still running (log: $LOG_DIR/session.log.1)"
 fi
 
 # --- shared-memory share (zero-copy frames); without it the backend streams pixels over the socket
@@ -163,7 +163,7 @@ else
   say "no /dev/dxg: rendering in software"
   echo "womarchy-session: no GPU acceleration available (/dev/dxg missing); the desktop will be slow" >&4
 fi
-# if omarchy.exe goes away without saying goodbye (killed, crashed), nothing can reattach: end the session
+# if whyprland.exe goes away without saying goodbye (killed, crashed), nothing can reattach: end the session
 export WOMARCHY_ORPHAN_TIMEOUT=${WOMARCHY_ORPHAN_TIMEOUT:-30}
 export XDG_SESSION_TYPE=wayland XDG_SESSION_CLASS=user
 # uwsm finds the login session by VT, which WSL has none of. `wsl --exec` processes are not inside a logind
@@ -177,8 +177,8 @@ fi
 export XDG_SESSION_ID XDG_SEAT=${XDG_SEAT:-seat0}
 say "login session $XDG_SESSION_ID, backend wsl, vsock port $WOMARCHY_VSOCK_PORT"
 if [ -e /usr/lib/womarchy/oobe.sh ] && [ ! -f "$HOME/.local/state/womarchy/provisioned" ]; then
-  # first-run setup could not finish Omarchy's per-user setup (e.g. no network at the time)
-  echo "womarchy-session: Omarchy's user setup is incomplete; run  womarchy-provision-user  in a terminal to finish it" >&4
+  # first-run setup could not finish the per-user setup
+  echo "womarchy-session: the user setup is incomplete; run  womarchy-provision-user  in a terminal to finish it" >&4
 fi
 FAILED_BEFORE=$(systemctl --user --failed --plain --no-legend 2>/dev/null | cut -d' ' -f1)
 
@@ -232,7 +232,7 @@ fi
 
 save_logs
 say "session ended with $rc"
-[ "$HUNGUP" = 1 ] && say "omarchy.exe went away (hangup); the compositor was stopped"
+[ "$HUNGUP" = 1 ] && say "whyprland.exe went away (hangup); the compositor was stopped"
 trap '' PIPE # the console may be gone
 if [ "$rc" != 0 ] && [ "$HUNGUP" = 0 ]; then
   echo "womarchy-session: the desktop session ended with status $rc (logs: $LOG_DIR)" >&4 2>/dev/null

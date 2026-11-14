@@ -1,10 +1,9 @@
 #!/bin/bash
-# Build the Omarchy-on-WSL image: out/Omarchy-<omarchy-version>-womarchy-<date>[-lite].wsl
+# Build the whyprland image (Arch Linux + plain Hyprland on WSL): out/Whyprland-<date>.wsl
 #
 # Run as root inside the womarchy-build distro (see README.md):
 #   wsl -d womarchy-build -u root -e bash <repo>/linux/image/build-image.sh
 # Environment:
-#   LITE=1           skip Omarchy's heavy preinstalled apps (LibreOffice, Kdenlive, OBS, ...)
 #   OUT=<dir>        output dir (default <repo>/out); womarchy packages are read from $OUT/repo
 #   WORK=<dir>       scratch on a Linux filesystem (default /var/tmp/womarchy-image)
 #   CACHE=<dir>      persistent package cache (default /var/cache/womarchy-pkg)
@@ -17,11 +16,10 @@
 # $OUT/repo is the [womarchy] repo as published: packages built by
 # linux/packages/build-all.sh (including womarchy-compat and womarchy-keyring),
 # db and packages signed by CI, fetched with linux/packages/fetch-signed-db.sh.
-# Steps: verify and stage the signed [womarchy] repo -> trust Omarchy's and
-# womarchy's signing keys (pinned fingerprints) ->
-# pacstrap from Omarchy's frozen stable Arch snapshot + [omarchy] with
-# [womarchy] first -> womarchy-apply-system in the chroot -> WSL config ->
-# scrub machine-specific state -> tar | xz.
+# Steps: verify and stage the signed [womarchy] repo -> trust womarchy's signing
+# key (pinned fingerprint) -> pacstrap from the Arch Linux Archive snapshot
+# ARCH_SNAPSHOT (pins.env) with [womarchy] first -> womarchy-apply-system in the
+# chroot -> WSL config -> scrub machine-specific state -> tar | xz.
 set -euo pipefail
 export TZ=UTC LC_ALL=C.UTF-8
 umask 022
@@ -31,7 +29,6 @@ REPO=$(cd "$HERE/../.." && pwd)
 OUT=${OUT:-$REPO/out}
 WORK=${WORK:-/var/tmp/womarchy-image}
 CACHE=${CACHE:-/var/cache/womarchy-pkg}
-LITE=${LITE:-0}
 XZ_LEVEL=${XZ_LEVEL:-6}
 ALLOW_STOCK_PACKAGES=${ALLOW_STOCK_PACKAGES:-0}
 ALLOW_UNSIGNED_REPO=${ALLOW_UNSIGNED_REPO:-0}
@@ -40,36 +37,29 @@ STAGE_REPO=$WORK/repo
 IMAGE_REPO=/var/lib/womarchy/repo   # the installed system's local [womarchy] repo (see wsl/pacman.sh)
 BUILD_DATE=$(date -u +%Y%m%d)
 
-source "$HERE/omarchy-key.env"      # OMARCHY_KEY_FPR, WOMARCHY_KEY_FPR (pinned signing keys)
+source "$HERE/pins.env"             # WOMARCHY_KEY_FPR (pinned signing key), ARCH_SNAPSHOT (archive date)
 KEY_DIR=$REPO/linux/packages/womarchy-keyring
-ARCH_MIRROR='https://stable-mirror.omarchy.org/$repo/os/$arch'   # Omarchy's frozen Arch snapshot (stable channel)
-OMARCHY_SERVERS=('https://pkgs.omarchy.org/stable/$arch' 'https://stable-mirror.omarchy.org/$repo/os/$arch')
+ARCH_MIRROR="https://archive.archlinux.org/repos/$ARCH_SNAPSHOT/\$repo/os/\$arch"   # frozen: same packages every build
 # Packages that must come from $OUT/repo (DRM-free compositor, patched Mesa, session).
 REQUIRED_WOMARCHY=(womarchy-compat womarchy-keyring womarchy-session aquamarine hyprland mesa)
 STOCK_ALTERNATIVE=(womarchy-session aquamarine hyprland mesa)   # what ALLOW_STOCK_PACKAGES may waive
 
-# From install/omarchy-base.packages: hardware, networking and boot pieces WSL
-# provides or does not have (research §3.1, §10.4). NetworkManager/resolved are
-# replaced by WSL networking; Windows owns printers, Bluetooth, power, displays.
-DROP=(asdcontrol avahi bluez bluez-tools bluez-utils bolt brightnessctl cups cups-filters
-      cups-pk-helper ddcutil gnome-disk-utility gvfs-mtp kernel-modules-hook networkmanager
-      nss-mdns power-profiles-daemon qemu-user-static-binfmt system-config-printer tzupdate
-      wireless-regdb)
-# LITE: the apps `omarchy-remove-preinstalls` drops (+ pinta's .NET runtime).
-LITE_DROP=(aether cliamp libreoffice-fresh xournalpp pinta dotnet-runtime obsidian obs-studio
-           kdenlive moonlight-qt lazydocker omacut omacalc omawrite)
-# What the ISO/archinstall adds around the Omarchy packages, WSL flavour:
-# PipeWire (archinstall audio), Mesa d3d12 + Dozen Vulkan (instead of vendor
-# GPU drivers), eglinfo for GPU checks, and omarchy-other.packages' generic bits.
-EXTRA=(base-devel sudo noto-fonts   # noto-fonts first, so it (not gnu-free-fonts) provides ttf-font
-       pipewire pipewire-alsa pipewire-jack pipewire-pulse gst-plugin-pipewire libpulse wireplumber
-       mesa vulkan-dzn vulkan-icd-loader mesa-utils xorg-xwayland
-       qt6-wayland gtk4-layer-shell webp-pixbuf-loader)
+# The image's packages (besides the [womarchy] ones). PipeWire tunnels to WSLg
+# (wsl/audio.sh); Mesa d3d12 + Dozen Vulkan instead of vendor GPU drivers;
+# mesa-utils for eglinfo GPU checks. No hyprlock/hypridle: Windows locks the session.
+PACKAGES=(base base-devel sudo git nano vim
+          hyprland uwsm xdg-desktop-portal-hyprland hyprpolkitagent waybar fuzzel mako kitty
+          wl-clipboard grim slurp
+          noto-fonts ttf-jetbrains-mono-nerd   # noto-fonts first, so it (not gnu-free-fonts) provides ttf-font
+          pipewire pipewire-alsa pipewire-jack pipewire-pulse gst-plugin-pipewire libpulse wireplumber
+          mesa vulkan-dzn vulkan-icd-loader mesa-utils xorg-xwayland qt6-wayland
+          womarchy-keyring womarchy-compat)
 
 log() { printf '\n\e[1;34m==> %s\e[0m\n' "$*"; }
 die() { printf '\e[1;31merror:\e[0m %s\n' "$*" >&2; exit 1; }
 
 [[ $EUID -eq 0 ]] || die "run as root (inside the womarchy-build distro)"
+[[ $ARCH_SNAPSHOT =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]] || die "bad ARCH_SNAPSHOT '$ARCH_SNAPSHOT' in pins.env"
 for c in pacstrap arch-chroot bsdtar jq xz curl gpg findmnt; do
   command -v "$c" >/dev/null || die "missing $c (run linux/image/setup-build-distro.sh)"
 done
@@ -141,32 +131,7 @@ if ((${#missing[@]})); then
   echo "warning: building without womarchy ${missing[*]} (ALLOW_STOCK_PACKAGES=1)" >&2
 fi
 
-# --- 3. trust Omarchy's packaging key on the build host (pinned fingerprint) -------
-if ! pacman-key --list-keys "$OMARCHY_KEY_FPR" &>/dev/null; then
-  log "Bootstrapping omarchy-keyring on the build host"
-  kr=$WORK/keyring; rm -rf --one-file-system "$kr"; mkdir -p "$kr"
-  curl -fsSL -o "$kr/omarchy.db" "https://pkgs.omarchy.org/stable/x86_64/omarchy.db"
-  desc=$(bsdtar -xOf "$kr/omarchy.db" 'omarchy-keyring-*/desc')
-  file=$(awk '/^%FILENAME%$/ {getline; print}' <<<"$desc")
-  sum=$(awk '/^%SHA256SUM%$/ {getline; print}' <<<"$desc")
-  curl -fsSL -o "$kr/$file" "https://pkgs.omarchy.org/stable/x86_64/$file"
-  echo "$sum  $kr/$file" | sha256sum -c - >/dev/null || die "omarchy-keyring checksum mismatch"
-  # Trust the package only if it carries exactly the pinned key: the set of
-  # primary-key fingerprints in omarchy.gpg and the set in omarchy-trusted must
-  # both equal {OMARCHY_KEY_FPR} (no extra keys that `--populate` would lsign).
-  bsdtar -xOf "$kr/$file" 'usr/share/pacman/keyrings/omarchy.gpg' >"$kr/omarchy.gpg"
-  bsdtar -xOf "$kr/$file" 'usr/share/pacman/keyrings/omarchy-trusted' >"$kr/omarchy-trusted"
-  primaries=$(gpg --show-keys --with-colons "$kr/omarchy.gpg" 2>/dev/null |
-    awk -F: '$1 == "pub" { want = 1; next } want && $1 == "fpr" { print $10; want = 0 }' | sort -u)
-  trusted=$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$kr/omarchy-trusted" | cut -d: -f1 | sort -u)
-  [[ $primaries == "$OMARCHY_KEY_FPR" ]] || die "omarchy.gpg keys are {${primaries//$'\n'/,}}, expected exactly $OMARCHY_KEY_FPR"
-  [[ $trusted == "$OMARCHY_KEY_FPR" ]] || die "omarchy-trusted lists {${trusted//$'\n'/,}}, expected exactly $OMARCHY_KEY_FPR"
-  pacman -U --noconfirm "$kr/$file" >/dev/null
-  pacman-key --populate omarchy >/dev/null
-  pacman-key --list-keys "$OMARCHY_KEY_FPR" >/dev/null || die "Omarchy key not trusted after bootstrap"
-fi
-
-# --- 3b. trust the womarchy repo key on the build host (pinned fingerprint) -----------
+# --- 3. trust the womarchy repo key on the build host (pinned fingerprint) -----------
 primaries() { gpg --show-keys --with-colons "$1" 2>/dev/null |
   awk -F: '$1 == "pub" { want = 1; next } want && $1 == "fpr" { print $10; want = 0 }' | sort -u; }
 key_trusted=$(sed -e 's/#.*//' "$KEY_DIR/womarchy-trusted" | cut -d: -f1 | grep -E '^[0-9A-F]{40}$' | sort -u || true)
@@ -198,32 +163,14 @@ conf=$WORK/pacman.conf
   echo "[womarchy]"
   echo "SigLevel = $womarchy_siglevel"
   echo "Server = file://$STAGE_REPO"
-  for r in core extra multilib; do printf '\n[%s]\nServer = %s\n' "$r" "$ARCH_MIRROR"; done
-  printf '\n[omarchy]\n'
-  for s in "${OMARCHY_SERVERS[@]}"; do echo "Server = $s"; done
+  for r in core extra; do printf '\n[%s]\nServer = %s\n' "$r" "$ARCH_MIRROR"; done
 } >"$conf"
-
-# Omarchy's pacman guard hook only lets `omarchy update` do system upgrades.
-export OMARCHY_ALLOW_DIRECT_PACMAN=1
 
 session=()
 [[ -n $(repo_version womarchy-session) ]] && session=(womarchy-session)
 
-log "pacstrap (1/2): base + Omarchy + womarchy"
-nice -n 10 pacstrap -C "$conf" -c -G -M "$ROOTFS" \
-  base omarchy-keyring omarchy-settings omarchy-nvim womarchy-compat omarchy "${session[@]}" "${EXTRA[@]}"
-
-omarchy_version=$(pacman -r "$ROOTFS" -Q omarchy | awk '{print $2}')
-omarchy_version=${omarchy_version%-*}
-base_list=$ROOTFS/usr/share/omarchy/install/omarchy-base.packages
-[[ -f $base_list ]] || die "missing $base_list"
-drop=("${DROP[@]}")
-if (( LITE )); then drop+=("${LITE_DROP[@]}"); fi
-mapfile -t base_pkgs < <(sed -e 's/[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' "$base_list" |
-  grep -vxF -f <(printf '%s\n' "${drop[@]}"))
-
-log "pacstrap (2/2): ${#base_pkgs[@]} of Omarchy's base packages (profile: $( ((LITE)) && echo lite || echo full))"
-nice -n 10 pacstrap -C "$conf" -c -G -M "$ROOTFS" --needed "${base_pkgs[@]}"
+log "pacstrap: ${#PACKAGES[@]} packages from the Arch archive of $ARCH_SNAPSHOT + womarchy"
+nice -n 10 pacstrap -C "$conf" -c -G -M "$ROOTFS" "${PACKAGES[@]}" "${session[@]}"
 
 # The womarchy builds must be what got installed (repo order is what decides).
 for p in "${REQUIRED_WOMARCHY[@]}"; do
@@ -246,9 +193,8 @@ install -m 0644 "$HERE/rootfs/etc/wsl.conf" "$ROOTFS/etc/wsl.conf"
 install -m 0644 "$HERE/rootfs/etc/wsl-distribution.conf" "$ROOTFS/etc/wsl-distribution.conf"
 install -d -m 0755 "$ROOTFS/etc/womarchy"
 cat >"$ROOTFS/etc/womarchy/profile" <<EOF
-WOMARCHY_PROFILE=$( ((LITE)) && echo lite || echo full)
-OMARCHY_VERSION=$omarchy_version
 WOMARCHY_BUILD_DATE=$BUILD_DATE
+WOMARCHY_ARCH_SNAPSHOT=$ARCH_SNAPSHOT
 EOF
 install -m 0644 "$HERE/rootfs/etc/womarchy/config" "$ROOTFS/etc/womarchy/config"
 
@@ -265,9 +211,8 @@ fi
 
 log "womarchy-apply-system in the chroot"
 mountpoint -q "$ROOTFS" || mount --bind "$ROOTFS" "$ROOTFS"   # arch-chroot wants a mountpoint
-arch-chroot "$ROOTFS" env OMARCHY_LOG_TO_STDOUT=1 OMARCHY_MIRROR=stable OMARCHY_ALLOW_DIRECT_PACMAN=1 \
-  WOMARCHY_XKB_LAYOUT=us WOMARCHY_LOCALE=en_US.UTF-8 \
-  womarchy-apply-system --defer-provisioning --first-install
+arch-chroot "$ROOTFS" env WOMARCHY_XKB_LAYOUT=us WOMARCHY_LOCALE=en_US.UTF-8 womarchy-apply-system ||
+  { cat "$ROOTFS/var/log/womarchy-apply-system.log" >&2; die "womarchy-apply-system failed in the chroot"; }
 
 # Sanity: the things the image must have.
 first_repo=$(grep -m1 -E '^\[[A-Za-z0-9_-]+\]' <(grep -v '^\[options\]' "$ROOTFS/etc/pacman.conf"))
@@ -275,12 +220,14 @@ first_repo=$(grep -m1 -E '^\[[A-Za-z0-9_-]+\]' <(grep -v '^\[options\]' "$ROOTFS
 [[ -L $ROOTFS/etc/systemd/system/NetworkManager.service || ! -f $ROOTFS/usr/lib/systemd/system/NetworkManager.service ]] ||
   die "NetworkManager not masked"
 installed=$(pacman -r "$ROOTFS" -Qq)
-for p in omarchy omarchy-settings womarchy-compat mesa vulkan-dzn pipewire-pulse wireplumber; do
+for p in hyprland uwsm womarchy-compat womarchy-keyring mesa vulkan-dzn pipewire-pulse wireplumber; do
   grep -qx "$p" <<<"$installed" || die "package $p not installed"
 done
 for p in limine snapper linux; do
   if grep -qx "$p" <<<"$installed"; then die "$p must not be installed"; fi
 done
+omarchy_pkgs=$(grep -i '^omarchy' <<<"$installed" || true)
+[[ -z $omarchy_pkgs ]] || die "Omarchy packages must not be installed: $(paste -sd' ' <<<"$omarchy_pkgs")"
 writable=$(find "$ROOTFS$IMAGE_REPO" \( -perm /022 -o ! -user root \) ! -type l)
 [[ -z $writable ]] || die "group/other-writable or non-root files in $IMAGE_REPO: $writable"
 
@@ -289,9 +236,9 @@ log "Scrubbing"
 rm -rf "$ROOTFS/etc/pacman.d/gnupg"            # never ship a private key; OOBE runs pacman-key --init
 rm -f "$ROOTFS/etc/machine-id" "$ROOTFS/var/lib/dbus/machine-id" "$ROOTFS/etc/hostname"
 rm -f "$ROOTFS/etc/resolv.conf"                # WSL generates it
-# Sync DBs are kept: they describe exactly the frozen Omarchy snapshot the image
-# was built from (no partial-upgrade risk), and without them every pacman call
-# warns "database file ... does not exist" until the first `omarchy update`.
+# Sync DBs are kept: they describe exactly the archive snapshot the image was
+# built from (no partial-upgrade risk), and without them every pacman call warns
+# "database file ... does not exist" until the first `pacman -Syu` (womarchy-update).
 rm -rf "$ROOTFS"/var/cache/pacman/pkg/* "$ROOTFS"/var/log/journal/*
 rm -rf "$ROOTFS"/root/* "$ROOTFS"/root/.[!.]* "$ROOTFS"/tmp/* "$ROOTFS"/var/tmp/*
 rm -rf "$ROOTFS/var/lib/womarchy/rollback"     # build-time points (pacstrap's 2nd transaction)
@@ -320,8 +267,7 @@ leaks=$(privacy_leaks "$ROOTFS")
 [[ -z $leaks ]] || die "machine-specific files left in the image: $(paste -sd' ' <<<"$leaks")"
 
 # --- 7. pack ------------------------------------------------------------------------------
-suffix=$( ((LITE)) && echo -lite || true)
-name="Omarchy-${omarchy_version}-womarchy-${BUILD_DATE}${suffix}.wsl"
+name="Whyprland-${BUILD_DATE}.wsl"
 unmount_rootfs
 [[ -z $(rootfs_mounts) ]] || die "still mounted under $ROOTFS: $(rootfs_mounts | paste -sd' ')"
 log "Packing $OUT/$name"

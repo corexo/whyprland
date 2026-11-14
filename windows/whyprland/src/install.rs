@@ -1,13 +1,13 @@
-//! Installing and managing the Omarchy WSL distro: `omarchy install | uninstall | status`, and the
-//! first-run setup that `omarchy` runs when a freshly imported distro has not been set up yet.
+//! Installing and managing the Whyprland WSL distro: `whyprland install | uninstall | status`, and the
+//! first-run setup that `whyprland` runs when a freshly imported distro has not been set up yet.
 //!
 //! What `install` changes on Windows (and `uninstall` undoes):
 //!  * the WSL distro itself (`wsl --install --from-file`, removed with `wsl --unregister`);
-//!  * %LOCALAPPDATA%\Programs\Omarchy\omarchy.exe (+ omarchy.ico), and that folder on the user PATH;
-//!  * a Start menu shortcut per distro: "Omarchy" (or "Omarchy (<distro>)").
+//!  * %LOCALAPPDATA%\Programs\Whyprland\whyprland.exe (+ whyprland.ico), and that folder on the user PATH;
+//!  * a Start menu shortcut per distro: "Whyprland" (or "Whyprland (<distro>)").
 //!
 //! The user PATH is only ever extended or reduced by our one entry, never rewritten from a value we
-//! could not read exactly; every previous value is appended to path-backup.txt next to omarchy.exe.
+//! could not read exactly; every previous value is appended to path-backup.txt next to whyprland.exe.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -25,17 +25,17 @@ use windows::Win32::System::Registry::{
 use windows::Win32::UI::Shell::{FOLDERID_LocalAppData, FOLDERID_Programs, IShellLinkW, SHGetKnownFolderPath, ShellLink, KF_FLAG_DEFAULT};
 use windows::Win32::UI::WindowsAndMessaging::{SendMessageTimeoutW, HWND_BROADCAST, SMTO_ABORTIFHUNG, SW_SHOWMINNOACTIVE, WM_SETTINGCHANGE};
 
-/// Where `omarchy install` fetches the image when no file is given and none sits next to omarchy.exe.
-/// Each release publishes Omarchy.wsl and Omarchy.wsl.sha256.
-pub const DEFAULT_IMAGE_URL: &str = "https://github.com/sytelus/womarchy/releases/latest/download/Omarchy.wsl";
+/// Where `whyprland install` fetches the image when no file is given and none sits next to whyprland.exe.
+/// Each release publishes Whyprland.wsl and Whyprland.wsl.sha256.
+pub const DEFAULT_IMAGE_URL: &str = "https://github.com/corexo/whyprland/releases/latest/download/Whyprland.wsl";
 /// Oldest WSL we support: the one we develop and test on. (2.5 already has the features we use, such as
 /// `wslinfo --vm-id` and `--install --from-file --name`, but its kernel and WSLg are untested.) install.ps1
 /// updates WSL to at least this version.
 const MIN_WSL: [u32; 3] = [3, 0, 1];
 const OOBE: &str = "/usr/lib/womarchy/oobe.sh";
 const OOBE_DONE: &str = "/var/lib/womarchy/oobe-done";
-const DEFAULT_DISTRO: &str = "Omarchy";
-pub(crate) const ICON: &[u8] = include_bytes!("../../../linux/overlay/omarchy.ico");
+const DEFAULT_DISTRO: &str = "Whyprland";
+pub(crate) const ICON: &[u8] = include_bytes!("../../../linux/overlay/whyprland.ico");
 
 /// wsl.exe with UTF-8 output (it writes UTF-16 to pipes otherwise).
 pub(crate) fn wsl() -> Command {
@@ -70,7 +70,7 @@ pub fn distro_exists(name: &str) -> bool {
 }
 
 /// Has the first-run setup (user, password, keyboard) completed in this distro? (Distros without our
-/// OOBE, like development ones, count as set up.) `omarchy` itself learns this from the session
+/// OOBE, like development ones, count as set up.) `whyprland` itself learns this from the session
 /// (WOMARCHY_NEEDS_SETUP) instead, so that a cold distro boots behind the "starting" windows.
 pub fn setup_done(name: &str) -> bool {
     wsl()
@@ -82,21 +82,21 @@ pub fn setup_done(name: &str) -> bool {
 }
 
 /// Run the first-run setup interactively in this console. WSL itself only runs the image's OOBE when a
-/// shell is opened, never for `wsl --exec` (what omarchy.exe uses), so we run it here, then restart the
+/// shell is opened, never for `wsl --exec` (what whyprland.exe uses), so we run it here, then restart the
 /// distro so the default user it wrote to /etc/wsl.conf applies.
 pub fn run_setup(name: &str) -> bool {
-    println!("Setting up Omarchy (first run): you'll pick a user name and password.\n");
+    println!("Setting up Whyprland (first run): you'll pick a user name and password.\n");
     let ok = wsl().args(["-d", name, "-u", "root", "--exec", OOBE]).status().map(|s| s.success()).unwrap_or(false);
     let _ = wsl().args(["--terminate", name]).stdout(Stdio::null()).status();
     if !ok {
-        eprintln!("omarchy: setup did not finish; run `omarchy` again to retry (log in the distro: /var/log/womarchy-oobe.log)");
+        eprintln!("whyprland: setup did not finish; run `whyprland` again to retry (log in the distro: /var/log/womarchy-oobe.log)");
     }
     ok
 }
 
 fn check_wsl() -> Result<(), String> {
     match wsl_version() {
-        None => Err("WSL is not installed. In an administrator prompt run:  wsl --install --no-distribution\nthen restart Windows and run `omarchy install` again (or use install.ps1, which does this for you).".into()),
+        None => Err("WSL is not installed. In an administrator prompt run:  wsl --install --no-distribution\nthen restart Windows and run `whyprland install` again (or use install.ps1, which does this for you).".into()),
         Some(v) if v < MIN_WSL => Err(format!(
             "WSL {}.{}.{} is too old (need {}.{}.{} or newer). Run:  wsl --update",
             v[0], v[1], v[2], MIN_WSL[0], MIN_WSL[1], MIN_WSL[2]
@@ -148,7 +148,7 @@ fn download(url: &str, dest: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// The image to install: the argument (file or https URL), else an Omarchy*.wsl next to omarchy.exe,
+/// The image to install: the argument (file or https URL), else a Whyprland*.wsl next to whyprland.exe,
 /// else the latest release. Downloads are checked against the published SHA-256.
 fn resolve_image(arg: Option<&str>) -> Result<(PathBuf, bool), String> {
     let source = match arg {
@@ -158,7 +158,7 @@ fn resolve_image(arg: Option<&str>) -> Result<(PathBuf, bool), String> {
                 rd.filter_map(|e| e.ok().map(|e| e.path()))
                     .filter(|p| {
                         let n = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_ascii_lowercase();
-                        n.starts_with("omarchy") && n.ends_with(".wsl")
+                        n.starts_with("whyprland") && n.ends_with(".wsl")
                     })
                     .max()
             });
@@ -177,13 +177,13 @@ fn resolve_image(arg: Option<&str>) -> Result<(PathBuf, bool), String> {
     }
 
     let dir = std::env::temp_dir();
-    let dest = dir.join("Omarchy-download.wsl");
-    let sum_file = dir.join("Omarchy-download.wsl.sha256");
+    let dest = dir.join("Whyprland-download.wsl");
+    let sum_file = dir.join("Whyprland-download.wsl.sha256");
     println!("Downloading {} (about 1.7 GB) ...", source);
     if !download(&source, &dest) {
         let _ = std::fs::remove_file(&dest);
         return Err(format!(
-            "download failed: {}\nDownload an Omarchy .wsl image yourself and run:  omarchy install PATH\\TO\\Omarchy.wsl",
+            "download failed: {}\nDownload a Whyprland .wsl image yourself and run:  whyprland install PATH\\TO\\Whyprland.wsl",
             source
         ));
     }
@@ -213,14 +213,14 @@ pub struct InstallOptions {
     pub image: Option<String>,
     pub location: Option<String>,
     pub launcher_only: bool,
-    /// distro + setup only: no omarchy.exe copy, PATH entry or Start menu shortcut (tests)
+    /// distro + setup only: no whyprland.exe copy, PATH entry or Start menu shortcut (tests)
     pub no_launcher: bool,
 }
 
 pub fn install(name: &str, o: &InstallOptions) -> i32 {
     if !o.launcher_only {
         if let Err(e) = check_wsl() {
-            eprintln!("omarchy: {}", e);
+            eprintln!("whyprland: {}", e);
             return 1;
         }
         if distro_exists(name) {
@@ -229,7 +229,7 @@ pub fn install(name: &str, o: &InstallOptions) -> i32 {
             let (image, downloaded) = match resolve_image(o.image.as_deref()) {
                 Ok(p) => p,
                 Err(e) => {
-                    eprintln!("omarchy: {}", e);
+                    eprintln!("whyprland: {}", e);
                     return 1;
                 }
             };
@@ -244,7 +244,7 @@ pub fn install(name: &str, o: &InstallOptions) -> i32 {
                 let _ = std::fs::remove_file(&image);
             }
             if !ok {
-                eprintln!("omarchy: wsl --install failed");
+                eprintln!("whyprland: wsl --install failed");
                 return 1;
             }
         }
@@ -253,17 +253,17 @@ pub fn install(name: &str, o: &InstallOptions) -> i32 {
         }
     }
     if o.no_launcher {
-        println!("\n{} is ready (launcher not installed). Start it with:  omarchy --distro {}", name, name);
+        println!("\n{} is ready (launcher not installed). Start it with:  whyprland --distro {}", name, name);
         return 0;
     }
     match install_launcher(name) {
         Ok(dir) => {
-            println!("\nOmarchy is ready. Start it from the Start menu ({}) or by typing:  omarchy{}", shortcut_title(name), distro_arg(name));
-            println!("(omarchy.exe is in {}; open a new terminal for PATH to pick it up)", dir.display());
+            println!("\nWhyprland is ready. Start it from the Start menu ({}) or by typing:  whyprland{}", shortcut_title(name), distro_arg(name));
+            println!("(whyprland.exe is in {}; open a new terminal for PATH to pick it up)", dir.display());
             0
         }
         Err(e) => {
-            eprintln!("omarchy: the distro is installed, but setting up the launcher failed: {}", e);
+            eprintln!("whyprland: the distro is installed, but setting up the launcher failed: {}", e);
             1
         }
     }
@@ -279,14 +279,14 @@ pub(crate) fn known_folder(id: &windows::core::GUID) -> Result<PathBuf, String> 
 }
 
 fn launcher_dir() -> Result<PathBuf, String> {
-    Ok(known_folder(&FOLDERID_LocalAppData)?.join("Programs").join("Omarchy"))
+    Ok(known_folder(&FOLDERID_LocalAppData)?.join("Programs").join("Whyprland"))
 }
 
 fn shortcut_title(name: &str) -> String {
     if name.eq_ignore_ascii_case(DEFAULT_DISTRO) {
-        "Omarchy".into()
+        "Whyprland".into()
     } else {
-        format!("Omarchy ({})", name)
+        format!("Whyprland ({})", name)
     }
 }
 
@@ -302,19 +302,19 @@ fn start_menu_link(name: &str) -> Result<PathBuf, String> {
     Ok(known_folder(&FOLDERID_Programs)?.join(format!("{}.lnk", shortcut_title(name))))
 }
 
-/// Copy omarchy.exe to %LOCALAPPDATA%\Programs\Omarchy, put that on the user PATH and add the distro's
+/// Copy whyprland.exe to %LOCALAPPDATA%\Programs\Whyprland, put that on the user PATH and add the distro's
 /// Start menu shortcut.
 fn install_launcher(name: &str) -> Result<PathBuf, String> {
     let dir = launcher_dir()?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let exe = dir.join("omarchy.exe");
+    let exe = dir.join("whyprland.exe");
     let me = std::env::current_exe().map_err(|e| e.to_string())?;
     if !same_file(&me, &exe) {
         std::fs::copy(&me, &exe).map_err(|e| format!("copy to {}: {}", exe.display(), e))?;
     }
-    let icon = dir.join("omarchy.ico");
+    let icon = dir.join("whyprland.ico");
     std::fs::write(&icon, ICON).map_err(|e| e.to_string())?;
-    create_shortcut(&start_menu_link(name)?, &exe, distro_arg(name).trim(), &icon, "Omarchy desktop (Hyprland on WSL)")?;
+    create_shortcut(&start_menu_link(name)?, &exe, distro_arg(name).trim(), &icon, "Whyprland desktop (Hyprland on WSL)")?;
     add_to_user_path(&dir)?;
     Ok(dir)
 }
@@ -334,7 +334,7 @@ fn create_shortcut(link: &Path, target: &Path, args: &str, icon: &Path, descript
         sl.SetArguments(&HSTRING::from(args)).map_err(|e| e.to_string())?;
         sl.SetIconLocation(&HSTRING::from(icon.as_os_str()), 0).map_err(|e| e.to_string())?;
         sl.SetDescription(&HSTRING::from(description)).map_err(|e| e.to_string())?;
-        // the console only matters if something goes wrong (then omarchy.exe shows it)
+        // the console only matters if something goes wrong (then whyprland.exe shows it)
         let _ = sl.SetShowCmd(SW_SHOWMINNOACTIVE);
         if let Some(d) = target.parent() {
             let _ = sl.SetWorkingDirectory(&HSTRING::from(d.as_os_str()));
@@ -442,7 +442,7 @@ pub fn uninstall(name: &str, yes: bool) -> i32 {
             }
         }
         if !wsl().args(["--unregister", name]).status().map(|s| s.success()).unwrap_or(false) {
-            eprintln!("omarchy: wsl --unregister {} failed", name);
+            eprintln!("whyprland: wsl --unregister {} failed", name);
             return 1;
         }
         println!("Removed the {} distro.", name);
@@ -457,11 +457,11 @@ pub fn uninstall(name: &str, yes: bool) -> i32 {
         let _ = std::fs::remove_file(link);
     }
 
-    // the launcher is shared: remove it only when no Omarchy shortcut (no other distro) remains
+    // the launcher is shared: remove it only when no Whyprland shortcut (no other distro) remains
     let others = std::fs::read_dir(&programs).map(|rd| {
         rd.filter_map(|e| e.ok()).any(|e| {
             let n = e.file_name().to_string_lossy().to_string();
-            n.starts_with("Omarchy") && n.ends_with(".lnk")
+            n.starts_with("Whyprland") && n.ends_with(".lnk")
         })
     });
     if others.unwrap_or(true) {
@@ -469,9 +469,9 @@ pub fn uninstall(name: &str, yes: bool) -> i32 {
     }
     let Ok(dir) = launcher_dir() else { return 0 };
     remove_from_user_path(&dir);
-    let _ = std::fs::remove_file(dir.join("omarchy.ico"));
+    let _ = std::fs::remove_file(dir.join("whyprland.ico"));
     // a running exe can't delete itself; leave it if that's us
-    let exe = dir.join("omarchy.exe");
+    let exe = dir.join("whyprland.exe");
     if std::env::current_exe().map(|m| same_file(&m, &exe)).unwrap_or(false) {
         println!("Delete {} yourself to finish (it is running).", dir.display());
     } else {
@@ -482,7 +482,7 @@ pub fn uninstall(name: &str, yes: bool) -> i32 {
 }
 
 pub fn status(name: &str) -> i32 {
-    println!("omarchy.exe:  {}", env!("CARGO_PKG_VERSION"));
+    println!("whyprland.exe:  {}", env!("CARGO_PKG_VERSION"));
     match wsl_version() {
         Some(v) => println!("WSL:          {}.{}.{}{}", v[0], v[1], v[2], if v < MIN_WSL { "  (too old: wsl --update)" } else { "" }),
         None => println!("WSL:          not installed"),
@@ -501,18 +501,18 @@ pub fn status(name: &str) -> i32 {
         );
     }
     if !distro_exists(name) {
-        println!("Distro:       {} is not installed (omarchy install)", name);
+        println!("Distro:       {} is not installed (whyprland install)", name);
         return 1;
     }
     println!("Distro:       {}", name);
-    println!("Setup:        {}", if setup_done(name) { "done" } else { "not yet (runs on the next `omarchy`)" });
+    println!("Setup:        {}", if setup_done(name) { "done" } else { "not yet (runs on the next `whyprland`)" });
     let probe = "u=$(id -un); gpu=$([ -e /dev/dxg ] && echo yes || echo 'no (software rendering)'); \
                  shm=$(mountpoint -q /mnt/wslgshm && echo mounted || echo 'not mounted (slower inline frames)'); \
                  pk=$(pacman -Q hyprland aquamarine mesa womarchy-session 2>/dev/null | tr '\\n' ' '); \
                  printf 'User:         %s\\nGPU (dxg):    %s\\nShared mem:   %s\\nPackages:     %s\\n' \"$u\" \"$gpu\" \"$shm\" \"$pk\"";
     let _ = wsl().args(["-d", name, "--exec", "bash", "-c", probe]).stdin(Stdio::null()).status();
     if let Ok(link) = start_menu_link(name) {
-        println!("Start menu:   {}", if link.exists() { link.display().to_string() } else { "no shortcut (omarchy install)".into() });
+        println!("Start menu:   {}", if link.exists() { link.display().to_string() } else { "no shortcut (whyprland install)".into() });
     }
     println!("Backup:       {}", crate::maintain::backup_summary(name));
     0

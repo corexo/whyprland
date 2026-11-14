@@ -1,0 +1,25 @@
+#!/bin/bash
+# womarchy-update: update whyprland (all packages), then reassert the WSL settings.
+#   womarchy-update [pacman -Syu options, e.g. --noconfirm]
+# Run by whyprland.exe (`whyprland update`) as the desktop user in a terminal:
+#   wsl -d <distro> --exec bash -lc womarchy-update
+# A rollback point is saved before the upgrade by the 00-womarchy-rollback-point
+# pacman hook (undo with `sudo womarchy-rollback`). Exits with pacman's status,
+# or womarchy-apply-system's when only that failed.
+set -uo pipefail
+
+sudo=()
+(( EUID == 0 )) || sudo=(sudo)
+
+"${sudo[@]}" pacman -Syu "$@"
+rc=$?
+if (( rc != 0 )); then
+  echo "womarchy-update: pacman -Syu failed (exit $rc); undo package changes with: sudo womarchy-rollback" >&2
+  exit "$rc"
+fi
+
+# Package updates may restore files the WSL leaves manage (pacman.conf, masked units, ...).
+"${sudo[@]}" womarchy-apply-system --reassert
+rc=$?
+(( rc == 0 )) || echo "womarchy-update: the packages are updated, but reasserting the WSL settings failed (exit $rc)" >&2
+exit "$rc"

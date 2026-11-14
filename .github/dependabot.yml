@@ -2,7 +2,7 @@
 version: 2
 updates:
   - package-ecosystem: cargo
-    directory: /windows/omarchy
+    directory: /windows/whyprland
     schedule:
       interval: monthly
     groups:

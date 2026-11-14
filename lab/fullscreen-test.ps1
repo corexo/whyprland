@@ -6,7 +6,7 @@
 param([Parameter(Mandatory = $true)][string]$Distro)
 $root = Split-Path -Parent $PSScriptRoot
 . "$PSScriptRoot\assert-desktop.ps1"   # stops if Windows is locked
-$exe  = "$root\windows\omarchy\target\release\omarchy.exe"
+$exe  = "$root\windows\whyprland\target\release\whyprland.exe"
 $out  = "$root\lab\out\fullscreen"
 New-Item -ItemType Directory -Force $out | Out-Null
 Remove-Item "$out\*" -ErrorAction SilentlyContinue

@@ -9,7 +9,7 @@
 param([Parameter(Mandatory = $true)][string]$Distro, [string]$Gif = "", [string]$Size = "1920x1080", [double]$Scale = 1.5)
 $root = Split-Path -Parent $PSScriptRoot
 . "$PSScriptRoot\assert-desktop.ps1"   # stops if Windows is locked
-$exe  = "$root\windows\omarchy\target\release\omarchy.exe"
+$exe  = "$root\windows\whyprland\target\release\whyprland.exe"
 $run  = "$root\lab\out\demo"
 if (-not $Gif) { $Gif = "$root\docs\img\demo.gif" }
 if (Test-Path $run) { Get-ChildItem $run -File | Remove-Item }

@@ -3,7 +3,7 @@
 param([string]$Distro = "womarchy-lab")
 $root = Split-Path -Parent $PSScriptRoot   # repo root
 . "$PSScriptRoot\assert-desktop.ps1"   # stops if Windows is locked
-$exe  = "$root\windows\omarchy\target\release\omarchy.exe"
+$exe  = "$root\windows\whyprland\target\release\whyprland.exe"
 $out  = "$root\lab\out"
 $saved = Get-Clipboard -Raw -ErrorAction SilentlyContinue
 $tag = Get-Random

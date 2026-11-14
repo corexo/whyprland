@@ -2,7 +2,7 @@
 # womarchy rollback point: save `pacman -Q` (the installed package set) to
 # /var/lib/womarchy/rollback/<UTC timestamp>.pkgs before a pacman transaction
 # (hook 00-womarchy-rollback-point). One point per update session: skipped when
-# the newest point is less than 30 minutes old (`omarchy update` runs several
+# the newest point is less than 30 minutes old (an update can run several
 # transactions). Keeps the newest 5. Always exits 0: it must never block pacman.
 # Restore with: sudo womarchy-rollback
 dir=/var/lib/womarchy/rollback

@@ -9,11 +9,10 @@ DIR=/var/lib/womarchy/rollback
 CACHE=/var/cache/pacman/pkg
 LOCAL_REPO=/var/lib/womarchy/repo
 WOMARCHY_URL=$(sed -n 's/^WOMARCHY_REPO_URL=//p' /etc/womarchy/config 2>/dev/null | tail -n1)
-WOMARCHY_URL=${WOMARCHY_URL:-https://github.com/sytelus/womarchy/releases/download/packages}   # womarchy-apply-system's setting
-OMARCHY_URL=https://pkgs.omarchy.org/stable/x86_64
+WOMARCHY_URL=${WOMARCHY_URL:-https://github.com/corexo/whyprland/releases/download/packages}   # womarchy-apply-system's setting
 ARCH_ARCHIVE=https://archive.archlinux.org/packages
 
-# Exit codes (omarchy.exe runs this through `omarchy rollback`):
+# Exit codes (whyprland.exe runs this for `whyprland rollback`):
 E_OK=0 E_ERROR=1 E_CANCELLED=2 E_MISSING=3 E_PACMAN=4 E_NOPOINTS=5
 
 usage() {
@@ -23,8 +22,8 @@ Usage: womarchy-rollback [--list] [--to POINT] [--yes] [--partial]
 Restore the installed package set of a rollback point (default: the newest):
 packages changed since then go back to their old version, removed ones are
 reinstalled, and packages added since are removed. Old package files come from
-pacman's cache, womarchy's local repo, or are downloaded (womarchy's release,
-Omarchy's repo, the Arch Linux Archive); pacman verifies their signatures.
+pacman's cache, womarchy's local repo, or are downloaded (womarchy's release or
+the Arch Linux Archive); pacman verifies their signatures.
 
   --list        list the rollback points and how far each is from now
   --to POINT    a point from --list: its number (1 = newest) or timestamp
@@ -165,12 +164,10 @@ find_online() { # NAME VER -> "URL SIZE"
   fi
   for arch in "${archs[@]}"; do
     local wm="$WOMARCHY_URL/$n-${v//:/.}-$arch.pkg.tar.zst"
-    local om="$OMARCHY_URL/$n-$v-$arch.pkg.tar.zst"
     local ar="$ARCH_ARCHIVE/${n:0:1}/$n/$n-$v-$arch.pkg.tar.zst" arx="$ARCH_ARCHIVE/${n:0:1}/$n/$n-$v-$arch.pkg.tar.xz"
     case ${repo_of[$n]:-} in
       womarchy) cands+=("$wm" "$ar") ;;
-      omarchy) cands+=("$om" "$ar" "$arx") ;;
-      *) cands+=("$ar" "$arx" "$om") ;;
+      *) cands+=("$ar" "$arx") ;;
     esac
   done
   for url in "${cands[@]}"; do
@@ -227,7 +224,6 @@ fi
 confirm "Roll back to $(pretty "$point")?" || { say "Cancelled; nothing was changed."; exit "$E_CANCELLED"; }
 
 # --- do it ---------------------------------------------------------------------------
-# Omarchy's pacman guard only blocks system upgrades (-Syu); -U and -R are fine.
 if ((${#targets[@]})); then
   if ! pacman -U --noconfirm "${targets[@]}"; then
     err "pacman -U failed; packages may be partly rolled back (see above)"

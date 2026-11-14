@@ -10,7 +10,7 @@
 //!   scroll N                 wheel N notches (positive = down)
 //!   shot PATH                screenshot inside the session (grim): a Linux path (/...), or a path
 //!                            relative to `--shot-dir` (default: the current directory) on Windows
-//!   mark TEXT                log "[omarchy] script: mark <unix ms> TEXT" (to line up recordings)
+//!   mark TEXT                log "[whyprland] script: mark <unix ms> TEXT" (to line up recordings)
 //!   quit                     end the session like closing the window
 //!
 //! Screenshots come from the compositor itself, so they show exactly what Hyprland composited.
@@ -161,7 +161,7 @@ fn char_code(c: char) -> Option<(u32, bool)> {
 fn chord(combo: &str) -> bool {
     let codes: Option<Vec<u32>> = combo.split('+').map(|k| key_code(k.trim())).collect();
     let Some(codes) = codes else {
-        eprintln!("[omarchy] script: unknown key in {}", combo);
+        eprintln!("[whyprland] script: unknown key in {}", combo);
         return false;
     };
     for &c in &codes {
@@ -187,7 +187,7 @@ fn type_text(text: &str) {
                     key(42, false);
                 }
             }
-            None => eprintln!("[omarchy] script: can't type {:?}", c),
+            None => eprintln!("[whyprland] script: can't type {:?}", c),
         }
     }
 }
@@ -205,7 +205,7 @@ fn screenshot(t: &Target, path: &str) {
         match wsl_path(&file) {
             Some(p) => p,
             None => {
-                eprintln!("[omarchy] script: shot {}: not on a drive WSL mounts", file.display());
+                eprintln!("[whyprland] script: shot {}: not on a drive WSL mounts", file.display());
                 return;
             }
         }
@@ -221,12 +221,12 @@ fn screenshot(t: &Target, path: &str) {
         cmd.arg("-u").arg(u);
     }
     let ok = cmd.args(["--exec", "sh", "-c", &sh]).stdin(Stdio::null()).status().map(|s| s.success()).unwrap_or(false);
-    eprintln!("[omarchy] script: shot {} {}", path, if ok { "ok" } else { "FAILED" });
+    eprintln!("[whyprland] script: shot {} {}", path, if ok { "ok" } else { "FAILED" });
 }
 
 pub fn run(opts: Options, output_id: u32) {
     let Ok(text) = std::fs::read_to_string(&opts.file) else {
-        eprintln!("[omarchy] script: cannot read {}", opts.file);
+        eprintln!("[whyprland] script: cannot read {}", opts.file);
         return;
     };
     let t = Target { opts, output_id };
@@ -236,7 +236,7 @@ pub fn run(opts: Options, output_id: u32) {
             continue;
         }
         let (cmd, arg) = line.split_once(' ').map(|(c, a)| (c, a.trim())).unwrap_or((line, ""));
-        eprintln!("[omarchy] script: {}", line);
+        eprintln!("[whyprland] script: {}", line);
         match cmd {
             "sleep" => sleep(Duration::from_millis(arg.parse().unwrap_or(0))),
             "key" => {
@@ -269,7 +269,7 @@ pub fn run(opts: Options, output_id: u32) {
                         }
                         send(wdp::pointer_abs_frame(now_ms(), output, x, y));
                     }
-                    _ => eprintln!("[omarchy] script: line {}: bad move (output {} known: {})", n + 1, output, size.is_some()),
+                    _ => eprintln!("[whyprland] script: line {}: bad move (output {} known: {})", n + 1, output, size.is_some()),
                 }
             }
             "click" => {
@@ -290,14 +290,14 @@ pub fn run(opts: Options, output_id: u32) {
             "mark" => {
                 // a timestamped line in the log, e.g. for tools that line up their own recording
                 let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
-                eprintln!("[omarchy] script: mark {} {}", ms, arg);
+                eprintln!("[whyprland] script: mark {} {}", ms, arg);
             }
             "quit" => {
                 send(wdp::quit());
                 return;
             }
-            _ => eprintln!("[omarchy] script: line {}: unknown command {}", n + 1, cmd),
+            _ => eprintln!("[whyprland] script: line {}: unknown command {}", n + 1, cmd),
         }
     }
-    eprintln!("[omarchy] script: done");
+    eprintln!("[whyprland] script: done");
 }

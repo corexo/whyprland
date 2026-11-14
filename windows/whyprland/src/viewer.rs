@@ -59,7 +59,7 @@ static MAIN_THREAD: AtomicU32 = AtomicU32::new(0);
 static HOOK_THREAD: AtomicU32 = AtomicU32::new(0);
 static EPOCH: OnceLock<Instant> = OnceLock::new();
 static QUIT_SENT: AtomicBool = AtomicBool::new(false);
-/// Windows still showing "Starting Omarchy…" (no swapchain yet).
+/// Windows still showing "Starting Whyprland…" (no swapchain yet).
 static SPLASH_DONE: Mutex<BTreeSet<isize>> = Mutex::new(BTreeSet::new());
 static MINIMIZED: Mutex<BTreeSet<isize>> = Mutex::new(BTreeSet::new());
 /// Called (on the UI thread, debounced) after Windows' display configuration changed.
@@ -159,7 +159,7 @@ pub fn create_windows(monitors: &[wdp::Monitor], windowed: bool) {
             hIconSm: app_icon(GetSystemMetrics(SM_CXSMICON)),
             hCursor: LoadCursorW(None, IDC_ARROW).unwrap_or_default(),
             hbrBackground: HBRUSH(GetStockObject(BLACK_BRUSH).0),
-            lpszClassName: w!("OmarchyViewer"),
+            lpszClassName: w!("WhyprlandViewer"),
             ..Default::default()
         };
         RegisterClassExW(&class);
@@ -175,7 +175,7 @@ pub fn create_windows(monitors: &[wdp::Monitor], windowed: bool) {
     }
 }
 
-/// The Omarchy icon (taskbar, Alt+Tab) from the embedded .ico: the entry closest to `size` pixels.
+/// The Whyprland icon (taskbar, Alt+Tab) from the embedded .ico: the entry closest to `size` pixels.
 fn app_icon(size: i32) -> HICON {
     let ico = crate::install::ICON;
     let u16_at = |o: usize| ico.get(o..o + 2).map(|b| u16::from_le_bytes([b[0], b[1]]) as usize);
@@ -213,11 +213,11 @@ fn create_window(i: usize, m: &wdp::Monitor, windowed: bool) -> Option<Surface> 
         let r = RECT { left: m.x, top: m.y, right: m.x + m.width as i32, bottom: m.y + m.height as i32 };
         (WS_POPUP | WS_VISIBLE, WS_EX_APPWINDOW, r)
     };
-    let title: Vec<u16> = format!("Omarchy \u{2014} WSL-{}\0", m.id).encode_utf16().collect();
+    let title: Vec<u16> = format!("Whyprland \u{2014} WSL-{}\0", m.id).encode_utf16().collect();
     let h = unsafe {
         CreateWindowExW(
             ex,
-            w!("OmarchyViewer"),
+            w!("WhyprlandViewer"),
             PCWSTR(title.as_ptr()),
             style,
             rect.left,
@@ -233,7 +233,7 @@ fn create_window(i: usize, m: &wdp::Monitor, windowed: bool) -> Option<Surface> 
     match h {
         Ok(h) => Some(Surface { output_id: m.id, hwnd: h.0 as isize, width: m.width, height: m.height }),
         Err(e) => {
-            eprintln!("[omarchy] cannot create the window for monitor {}: {}", m.id, e);
+            eprintln!("[whyprland] cannot create the window for monitor {}: {}", m.id, e);
             None
         }
     }
@@ -325,7 +325,7 @@ pub fn start_keyboard_hook() {
     thread::spawn(|| unsafe {
         HOOK_THREAD.store(GetCurrentThreadId(), Ordering::SeqCst);
         let Ok(hook) = SetWindowsHookExW(WH_KEYBOARD_LL, Some(ll_keyboard), Some(GetModuleHandleW(None).unwrap().into()), 0) else {
-            eprintln!("[omarchy] cannot install the keyboard hook; the Windows key will go to Windows");
+            eprintln!("[whyprland] cannot install the keyboard hook; the Windows key will go to Windows");
             return;
         };
         let mut msg = MSG::default();
@@ -373,7 +373,7 @@ unsafe extern "system" fn ll_keyboard(code: i32, wparam: WPARAM, lparam: LPARAM)
                 if changed {
                     send(wdp::key(now_ms(), key, down));
                 }
-                // swallow: Win, Alt+Tab, Win+… belong to Omarchy while it has focus
+                // swallow: Win, Alt+Tab, Win+… belong to Whyprland while it has focus
                 return LRESULT(1);
             }
         }
@@ -518,7 +518,7 @@ unsafe extern "system" fn wndproc(h: HWND, msg: u32, wparam: WPARAM, lparam: LPA
             LRESULT(0)
         }
         WM_CLOSE => {
-            // closing the viewer ends the Omarchy session (logout); we exit when the session does
+            // closing the viewer ends the Whyprland session (logout); we exit when the session does
             if LIVE.load(Ordering::SeqCst) && !QUIT_SENT.swap(true, Ordering::SeqCst) {
                 send(wdp::quit());
             } else {
@@ -546,7 +546,7 @@ fn paint_splash(h: HWND) {
         let old = SelectObject(hdc, font.into());
         SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, COLORREF(0x00B0B0B0));
-        let mut text: Vec<u16> = "Starting Omarchy\u{2026}".encode_utf16().collect();
+        let mut text: Vec<u16> = "Starting Whyprland\u{2026}".encode_utf16().collect();
         DrawTextW(hdc, &mut text, &mut rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         SelectObject(hdc, old);
         let _ = DeleteObject(font.into());
@@ -682,7 +682,7 @@ pub fn run_session(conn: Conn, transport: u32, vm_id: String, opts: RenderOption
         thread::spawn(|| loop {
             thread::sleep(Duration::from_secs(2));
             let (f, p) = (STAT_FRAMES.swap(0, Ordering::Relaxed), STAT_PIXELS.swap(0, Ordering::Relaxed));
-            eprintln!("[omarchy] {:.1} frames/s, {:.1} Mpx/s uploaded", f as f64 / 2.0, p as f64 / 2.0 / 1e6);
+            eprintln!("[whyprland] {:.1} frames/s, {:.1} Mpx/s uploaded", f as f64 / 2.0, p as f64 / 2.0 / 1e6);
         });
     }
 
@@ -705,7 +705,7 @@ pub fn run_session(conn: Conn, transport: u32, vm_id: String, opts: RenderOption
             }
             wdp::OUTPUT => {
                 let (id, w, h) = (r.u32().unwrap_or(0), r.u32().unwrap_or(0), r.u32().unwrap_or(0));
-                eprintln!("[omarchy] output {} is {}x{}", id, w, h);
+                eprintln!("[whyprland] output {} is {}x{}", id, w, h);
                 if let Some((tx, _)) = presenters.get(&id) {
                     let _ = tx.send(Job::Reset);
                 }
@@ -732,7 +732,7 @@ pub fn run_session(conn: Conn, transport: u32, vm_id: String, opts: RenderOption
                 }
             }
             wdp::BYE => {
-                eprintln!("[omarchy] compositor said goodbye");
+                eprintln!("[whyprland] compositor said goodbye");
                 break Ok(());
             }
             _ => {}
@@ -860,7 +860,7 @@ fn presenter(session: &'static Session, id: u32, rx: mpsc::Receiver<Job>) {
     let mut sections: HashMap<String, Mapping> = HashMap::new();
     let mut reported: HashSet<String> = HashSet::new(); // problems already logged (log once)
     let mut frames = 0u64;
-    let trace = std::env::var_os("OMARCHY_FRAME_TRACE").is_some();
+    let trace = std::env::var_os("WHYPRLAND_FRAME_TRACE").is_some();
 
     for job in rx {
         let payload = match job {
@@ -874,7 +874,7 @@ fn presenter(session: &'static Session, id: u32, rx: mpsc::Receiver<Job>) {
         let mut r = Reader::new(&payload);
         let Some(f) = wdp::parse_frame(&mut r).filter(|f| f.output == id) else {
             if reported.insert("bad frame".into()) {
-                eprintln!("[omarchy] output {}: invalid frame ignored", id);
+                eprintln!("[whyprland] output {}: invalid frame ignored", id);
             }
             // seq sits at a fixed offset; ack it so the output keeps going
             if let Some(seq) = payload.get(20..28).map(|b| u64::from_le_bytes(b.try_into().unwrap())) {
@@ -886,7 +886,7 @@ fn presenter(session: &'static Session, id: u32, rx: mpsc::Receiver<Job>) {
 
         if let Err(e) = present_frame(session, &mut gfx, &mut sections, &mut reported, &f, r.rest(), id, &mut frames) {
             if reported.insert(format!("{:?}", e.code())) {
-                eprintln!("[omarchy] output {}: {}", id, e.message());
+                eprintln!("[whyprland] output {}: {}", id, e.message());
             }
             if e.code() == DXGI_ERROR_DEVICE_REMOVED || e.code() == DXGI_ERROR_DEVICE_RESET {
                 // the GPU was reset (driver update/crash): start over with new objects and a full frame
@@ -948,7 +948,7 @@ fn present_frame(
                     }
                     Err(e) => {
                         if reported.insert(f.buffer.clone()) {
-                            eprintln!("[omarchy] output {}: cannot map {}: {}", id, f.buffer, e);
+                            eprintln!("[whyprland] output {}: cannot map {}: {}", id, f.buffer, e);
                         }
                         return Ok(());
                     }
@@ -1068,6 +1068,6 @@ fn dump_texture(device: &ID3D11Device, context: &ID3D11DeviceContext, tex: &ID3D
         }
         context.Unmap(&staging, 0);
         let _ = std::fs::write(path, data);
-        eprintln!("[omarchy] dumped frame to {}", path);
+        eprintln!("[whyprland] dumped frame to {}", path);
     }
 }

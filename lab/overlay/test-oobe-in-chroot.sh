@@ -12,7 +12,7 @@ out=$(WOMARCHY_OOBE_USER=docker WOMARCHY_OOBE_PASSWORD=x WOMARCHY_OOBE_SKIP_PROV
 out=$(WOMARCHY_OOBE_USER=bob WOMARCHY_OOBE_PASSWORD=pw WOMARCHY_XKB_LAYOUT=us,de WOMARCHY_OOBE_SKIP_PROVISION=1 timeout 60 bash $O </dev/null 2>&1); rc=$?
 [[ $rc == 0 ]] && id -u bob | grep -qx 1000 && grep -qx 'XKBOPTIONS=grp:alt_shift_toggle' /etc/vconsole.conf &&
   ok "unattended user+password: created, 2 layouts + toggle (rc=$rc)" || no "rc=$rc: $(tail -5 <<<"$out")"
-grep -q 'run "omarchy" in cmd or PowerShell' <<<"$out" && ok "final message points to omarchy on Windows" || no "final message"
+grep -q 'run "whyprland" in cmd or PowerShell' <<<"$out" && ok "final message points to whyprland on Windows" || no "final message"
 grep -q 'womarchy-session' <<<"$out" && no "message still mentions womarchy-session" || true
 [[ $(stat -c %a /var/log/womarchy-oobe.log) == 600 ]] && ok "OOBE log mode 600" || no "log mode $(stat -c %a /var/log/womarchy-oobe.log)"
 out=$(timeout 10 bash $O </dev/null 2>&1); rc=$?

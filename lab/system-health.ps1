@@ -25,7 +25,7 @@ foreach ($d in $Distros) {
 }
 
 "=== leftovers"
-"omarchy.exe processes: $(@(Get-Process omarchy -ErrorAction SilentlyContinue).Count)"
+"whyprland.exe processes: $(@(Get-Process whyprland -ErrorAction SilentlyContinue).Count)"
 $vm = Get-Process vmmem* -ErrorAction SilentlyContinue | Measure-Object WorkingSet64 -Sum
 "WSL VM (vmmem) working set: {0:N0} MB" -f ($vm.Sum / 1MB)
 "running distros now: $((wsl.exe --list --running --quiet | Where-Object { $_ }) -join ', ')"

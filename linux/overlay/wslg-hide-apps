@@ -1,14 +1,14 @@
 #!/bin/bash
-# womarchy: keep Omarchy's apps out of the Windows Start menu.
+# womarchy: keep the distro's apps out of the Windows Start menu.
 #
 # WSLg publishes every desktop entry of the distro as a Windows Start-menu
 # shortcut "Name (distro)" that starts the app in its own WSLg window, outside
-# the Omarchy desktop. WSLg's app list (weston rdprail-shell app-list.c) scans
+# the Hyprland desktop. WSLg's app list (weston rdprail-shell app-list.c) scans
 # /usr/share/applications, then /usr/local/share/applications, keyed by file
 # name, and skips entries with Hidden/NoDisplay/Terminal=true or ANY
 # OnlyShowIn. So for each entry WSLg would show, this writes a copy to
 # /usr/local/share/applications with "OnlyShowIn=Hyprland;": WSLg drops it,
-# while the Omarchy session (XDG_CURRENT_DESKTOP=Hyprland; /usr/local/share
+# while the Hyprland session (XDG_CURRENT_DESKTOP=Hyprland; /usr/local/share
 # comes first in XDG_DATA_DIRS) still lists it.
 #
 # Run by the pacman hook 90-womarchy-wslg-apps.hook on every transaction that

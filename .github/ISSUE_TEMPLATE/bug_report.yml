@@ -1,25 +1,25 @@
 name: Bug report
-description: Something doesn't work in Omarchy on WSL (install, startup, display, input, clipboard, updates, ...)
+description: Something doesn't work in whyprland (install, startup, display, input, clipboard, updates, ...)
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting! The [troubleshooting guide](https://github.com/sytelus/womarchy/blob/main/docs/TROUBLESHOOTING.md) covers common problems.
-        Problems with Omarchy itself that also happen outside WSL belong to [Omarchy](https://github.com/omacom/omarchy/issues).
+        Thanks for reporting! The [troubleshooting guide](https://github.com/corexo/whyprland/blob/main/docs/TROUBLESHOOTING.md) covers common problems.
+        Problems with Hyprland itself that also happen outside WSL belong to [Hyprland](https://github.com/hyprwm/Hyprland/issues).
   - type: textarea
     id: what
     attributes:
       label: What happened?
       description: What you did, what you expected, and what happened instead.
       placeholder: |
-        I ran `omarchy` and ...
+        I ran `whyprland` and ...
     validations:
       required: true
   - type: textarea
     id: status
     attributes:
-      label: Output of `omarchy status`
+      label: Output of `whyprland status`
       description: Run it in a Windows terminal (PowerShell or cmd) and paste the output.
       render: text
     validations:
@@ -29,7 +29,7 @@ body:
     attributes:
       label: Logs
       description: |
-        If the desktop starts or fails to start: the last ~50 lines of `~/.cache/womarchy/session.log` and `~/.cache/womarchy/hyprland.log` (get a shell with `wsl -d Omarchy`).
+        If the desktop starts or fails to start: the last ~50 lines of `~/.cache/womarchy/session.log` and `~/.cache/womarchy/hyprland.log` (get a shell with `wsl -d Whyprland`).
         For install problems: what the installer printed.
       render: text
   - type: input

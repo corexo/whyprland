@@ -9,7 +9,7 @@ use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
 pub fn enumerate() -> Vec<Monitor> {
     // testing: a layout read from a file (re-read on every call), so full-screen mode and display
     // changes can be exercised with small fake "monitors" without touching the real display settings
-    if let Some(path) = std::env::var_os("OMARCHY_FAKE_MONITORS_FILE") {
+    if let Some(path) = std::env::var_os("WHYPRLAND_FAKE_MONITORS_FILE") {
         return std::fs::read_to_string(path).map(|s| parse_env(s.trim())).unwrap_or_default();
     }
     let mut handles: Vec<HMONITOR> = Vec::new();

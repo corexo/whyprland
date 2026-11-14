@@ -1,24 +1,16 @@
--- womarchy (Omarchy on WSL): adjustments for Windows.
+-- whyprland (Hyprland on WSL): adjustments for Windows.
 -- Managed by womarchy-provision-user and overwritten on re-provisioning; put your
--- own changes in ~/.config/hypr/bindings.lua or input.lua instead.
+-- own changes in ~/.config/hypr/hyprland.lua instead. Loaded at its end.
 
--- Keybindings. Windows always consumes Super+L (lock) and Ctrl+Alt+Del (secure
--- attention sequence): no application, RDP client or keyboard hook ever
--- receives them. Move the Omarchy actions bound to them.
-if _G.omarchy_default_bindings ~= false then
-  hl.unbind("SUPER + L")
-  hl.unbind("CTRL + ALT + DELETE")
-  -- "Laptop display mirroring" contains Ctrl+Alt+Del, and WSL has no laptop panel.
-  hl.unbind("SUPER + CTRL + ALT + Delete")
-end
+-- Windows always consumes Super+L (lock) and Ctrl+Alt+Del (secure attention
+-- sequence): no application, RDP client or keyboard hook ever receives them, so
+-- drop bindings on them (they could never fire).
+hl.unbind("SUPER + L")
+hl.unbind("CTRL + ALT + DELETE")
 
-o.bind("SUPER + ALT + L", "Toggle workspace layout", "omarchy-hyprland-workspace-layout-toggle")
-o.bind("SUPER + CTRL + ALT + BACKSPACE", "Close all windows", "omarchy-hyprland-window-close-all")
-
--- Keyboard options. Omarchy reads XKBLAYOUT/XKBVARIANT from /etc/vconsole.conf
--- but keeps its own kb_options; the first-run setup records extra options there
--- as XKBOPTIONS (e.g. grp:alt_shift_toggle when Windows has several keyboard
--- layouts). Append them to whatever kb_options is in effect.
+-- Keyboard. The first-run setup records the Windows keyboard layouts in
+-- /etc/vconsole.conf (XKBLAYOUT/XKBVARIANT, plus XKBOPTIONS such as
+-- grp:alt_shift_toggle with several layouts).
 local function vconsole_value(key)
   local file = io.open("/etc/vconsole.conf", "r")
   if not file then
@@ -35,18 +27,33 @@ local function vconsole_value(key)
   return value
 end
 
+local function current(key)
+  local ok, v = pcall(hl.get_config, key)
+  if ok and type(v) == "string" then
+    return v
+  end
+  return ""
+end
+
+local input = {}
+-- Layout and variant only while hyprland.lua keeps Hyprland's default ("us").
+local layout = vconsole_value("XKBLAYOUT")
+if layout and layout ~= "" and current("input.kb_layout") == "us" then
+  input.kb_layout = layout
+  input.kb_variant = vconsole_value("XKBVARIANT") or ""
+end
+-- Options are appended to whatever kb_options is in effect.
 local extra = vconsole_value("XKBOPTIONS")
 if extra and extra ~= "" then
-  local ok, current = pcall(hl.get_config, "input.kb_options")
-  if not ok or type(current) ~= "string" then
-    current = "compose:caps,shift:both_capslock_cancel" -- Omarchy's default
-  end
   local options, seen = {}, {}
-  for opt in (current .. "," .. extra):gmatch("[^,]+") do
+  for opt in (current("input.kb_options") .. "," .. extra):gmatch("[^,]+") do
     if not seen[opt] then
       seen[opt] = true
       options[#options + 1] = opt
     end
   end
-  hl.config({ input = { kb_options = table.concat(options, ",") } })
+  input.kb_options = table.concat(options, ",")
+end
+if next(input) then
+  hl.config({ input = input })
 end

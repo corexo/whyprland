@@ -5,7 +5,7 @@
 param([Parameter(Mandatory = $true)][string]$Image, [switch]$OnlyA, [switch]$OnlyB)
 $ErrorActionPreference = "Continue"
 $root = Split-Path -Parent $PSScriptRoot   # repo root
-$exe  = "$root\windows\omarchy\target\release\omarchy.exe"
+$exe  = "$root\windows\whyprland\target\release\whyprland.exe"
 $out  = "$root\lab\out\installer"
 $name = "omarchy-test-e2e"
 $loc  = Join-Path $env:LOCALAPPDATA "womarchy-tests\$name"

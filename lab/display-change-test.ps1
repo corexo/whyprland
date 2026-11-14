@@ -1,5 +1,5 @@
 # Live display-layout changes, without touching the real display settings: run the full-screen code
-# path on small fake "monitors" (OMARCHY_FAKE_MONITORS_FILE), change the layout, send WM_DISPLAYCHANGE,
+# path on small fake "monitors" (WHYPRLAND_FAKE_MONITORS_FILE), change the layout, send WM_DISPLAYCHANGE,
 # and check the viewer windows, the compositor outputs and the regenerated monitor rules follow.
 param([string]$Distro = "womarchy-lab",
       [string]$Session = "")
@@ -7,7 +7,7 @@ $root = Split-Path -Parent $PSScriptRoot   # repo root
 . "$PSScriptRoot\assert-desktop.ps1"   # stops if Windows is locked
 # default: this checkout's womarchy-session (it has --update-monitors), as WSL sees the repo
 if (-not $Session) { $Session = "/mnt/" + $root.Substring(0, 1).ToLower() + ($root.Substring(2) -replace '\\', '/') + "/linux/packages/womarchy-session/womarchy-session" }
-$exe  = "$root\windows\omarchy\target\release\omarchy.exe"
+$exe  = "$root\windows\whyprland\target\release\whyprland.exe"
 $out  = "$root\lab\out"
 $layout = "$out\fake-monitors.txt"
 Add-Type @"
@@ -22,7 +22,7 @@ function Monitors() {
 function Poke($p) { $p.Refresh(); [void][DC]::PostMessageW($p.MainWindowHandle, 0x007E, [IntPtr]::Zero, [IntPtr]::Zero) }
 
 Layout "1:100:100:640:360:60000:1000:1:FAKE1"
-$env:OMARCHY_FAKE_MONITORS_FILE = $layout
+$env:WHYPRLAND_FAKE_MONITORS_FILE = $layout
 $p = Start-Process -FilePath $exe -ArgumentList "--distro $Distro --session $Session --stats" -PassThru -NoNewWindow `
     -RedirectStandardError "$out\display-change-stderr.log"
 Start-Sleep -Seconds 9
@@ -38,6 +38,6 @@ Poke $p; Start-Sleep -Seconds 5
 "C (back to 1):  $(Monitors)"
 
 $p.Refresh(); [void]$p.CloseMainWindow(); [void]$p.WaitForExit(15000)
-Remove-Item Env:\OMARCHY_FAKE_MONITORS_FILE
+Remove-Item Env:\WHYPRLAND_FAKE_MONITORS_FILE
 "viewer exit: $($p.ExitCode)"
 Get-Content "$out\display-change-stderr.log" | Select-String "layout changed|output \d is|goodbye"

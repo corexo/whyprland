@@ -3,8 +3,8 @@
 version = 4
 
 [[package]]
-name = "omarchy"
-version = "0.2.0"
+name = "whyprland"
+version = "0.3.0"
 dependencies = [
  "windows",
 ]

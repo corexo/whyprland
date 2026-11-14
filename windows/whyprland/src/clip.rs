@@ -79,13 +79,13 @@ pub fn init() {
             cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
             lpfnWndProc: Some(wndproc),
             hInstance: hinst.into(),
-            lpszClassName: w!("OmarchyClipboard"),
+            lpszClassName: w!("WhyprlandClipboard"),
             ..Default::default()
         };
         RegisterClassExW(&class);
         let Ok(hwnd) = CreateWindowExW(
             WINDOW_EX_STYLE(0),
-            w!("OmarchyClipboard"),
+            w!("WhyprlandClipboard"),
             w!(""),
             WINDOW_STYLE(0),
             0,
@@ -97,12 +97,12 @@ pub fn init() {
             Some(hinst.into()),
             None,
         ) else {
-            eprintln!("[omarchy] clipboard: no message window; clipboard sharing is off");
+            eprintln!("[whyprland] clipboard: no message window; clipboard sharing is off");
             return;
         };
         HWND_CLIP.store(hwnd.0 as isize, Ordering::SeqCst);
         if AddClipboardFormatListener(hwnd).is_err() {
-            eprintln!("[omarchy] clipboard: cannot listen for clipboard changes");
+            eprintln!("[whyprland] clipboard: cannot listen for clipboard changes");
         }
     }
 }
@@ -115,12 +115,12 @@ pub fn start(vm: windows::core::GUID, port: u32, token: [u8; wdp::TOKEN_BYTES]) 
         loop {
             let Some(conn) = connect(vm, port, &token) else {
                 if !announced {
-                    eprintln!("[omarchy] clipboard: womarchy-clipd did not answer; clipboard sharing is off");
+                    eprintln!("[whyprland] clipboard: womarchy-clipd did not answer; clipboard sharing is off");
                 }
                 return;
             };
             if !announced {
-                eprintln!("[omarchy] clipboard: connected");
+                eprintln!("[whyprland] clipboard: connected");
                 announced = true;
             }
 
@@ -184,7 +184,7 @@ fn connect(vm: windows::core::GUID, port: u32, token: &[u8; wdp::TOKEN_BYTES]) -
             if ok {
                 return Some(conn);
             }
-            eprintln!("[omarchy] clipboard: the clipboard daemon failed to authenticate; not sharing the clipboard with it");
+            eprintln!("[whyprland] clipboard: the clipboard daemon failed to authenticate; not sharing the clipboard with it");
             return None;
         }
         thread::sleep(Duration::from_millis(500));

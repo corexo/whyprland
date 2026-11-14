@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# womarchy first-run setup (WSL OOBE). WSL runs this as root, attached to the
+# whyprland first-run setup (WSL OOBE). WSL runs this as root, attached to the
 # terminal, the first time the distro's default shell is opened after
-# `wsl --install --from-file Omarchy*.wsl` (/etc/wsl-distribution.conf [oobe]).
-# omarchy.exe also runs it (wsl --exec) when the session reports that setup is
+# `wsl --install --from-file Whyprland*.wsl` (/etc/wsl-distribution.conf [oobe]).
+# whyprland.exe also runs it (wsl --exec) when the session reports that setup is
 # needed. Exit 0 = done (WSL then makes UID 1000 the default user and never runs
 # it again); non-zero = WSL closes the shell and runs this again next launch.
 #
@@ -11,12 +11,12 @@
 #
 # Unattended use (installers; pass the variables through WSLENV from Windows):
 #   WOMARCHY_OOBE_USER + WOMARCHY_OOBE_PASSWORD   (both required without a terminal)
-#   WOMARCHY_OOBE_FULLNAME, WOMARCHY_OOBE_EMAIL, WOMARCHY_XKB_LAYOUT,
+#   WOMARCHY_OOBE_FULLNAME, WOMARCHY_XKB_LAYOUT,
 #   WOMARCHY_XKB_VARIANT, WOMARCHY_OOBE_NOPASSWD=1 (passwordless sudo),
 #   WOMARCHY_OOBE_SKIP_PROVISION=1
-# TESTS ONLY: --defaults / WOMARCHY_OOBE_DEFAULTS=1 creates user "omarchy" with
-#   the well-known password "omarchy" and sudo rights. Never use it for a real
-#   install (test-image.ps1 uses it on throwaway omarchy-test* distros).
+# TESTS ONLY: --defaults / WOMARCHY_OOBE_DEFAULTS=1 creates user "whyprland" with
+#   the well-known password "whyprland" and sudo rights. Never use it for a real
+#   install (test-image.ps1 uses it on throwaway whyprland-test* distros).
 
 set -uo pipefail
 
@@ -25,8 +25,7 @@ DONE=/var/lib/womarchy/oobe-done
 LOG=/var/log/womarchy-oobe.log
 REG=/mnt/c/Windows/System32/reg.exe
 CMD=/mnt/c/Windows/System32/cmd.exe
-export OMARCHY_PATH=/usr/share/omarchy
-export PATH="$OMARCHY_PATH/bin:/usr/local/sbin:/usr/local/bin:/usr/bin"
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/bin"
 
 defaults="${WOMARCHY_OOBE_DEFAULTS:-0}"
 [[ ${1:-} == --defaults ]] && defaults=1
@@ -45,7 +44,7 @@ ask() { # ask VAR "prompt" default
 touch "$LOG" && chmod 0600 "$LOG"
 exec > >(tee -a "$LOG") 2>&1
 
-# Already set up (e.g. OOBE was run by omarchy.exe, or a retry after success):
+# Already set up (e.g. OOBE was run by whyprland.exe, or a retry after success):
 # let WSL record completion and switch to the default user.
 if [[ -f $DONE ]] && getent passwd "$UID_DEFAULT" >/dev/null; then
   exit 0
@@ -60,17 +59,17 @@ fi
 
 cat <<'EOF'
 
-   Omarchy for WSL (womarchy) - first-run setup
-   Omarchy 4 on Arch Linux, with the Hyprland desktop on your GPU.
+   whyprland - first-run setup
+   Arch Linux with the Hyprland desktop on your GPU, in WSL.
 
 EOF
 if (( defaults )); then
-  say "TEST DEFAULTS: user 'omarchy' with password 'omarchy' and sudo. Not for real use."
+  say "TEST DEFAULTS: user 'whyprland' with password 'whyprland' and sudo. Not for real use."
 fi
 
 # --- pacman keyring: never shipped in the image (it would carry a private key)
 keyrings=()
-for k in archlinux omarchy womarchy; do
+for k in archlinux womarchy; do
   [[ -f /usr/share/pacman/keyrings/$k.gpg ]] && keyrings+=("$k")
 done
 if [[ ! -s /etc/pacman.d/gnupg/trustdb.gpg ]]; then
@@ -122,9 +121,9 @@ klid_to_xkb() {
 }
 
 # --- user -------------------------------------------------------------------
-default_user=$(printf '%s' "${WOMARCHY_OOBE_USER:-${win_user:-omarchy}}" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')
-[[ $default_user =~ ^[a-z_] ]] || default_user=omarchy
-(( defaults )) && default_user="${WOMARCHY_OOBE_USER:-omarchy}"
+default_user=$(printf '%s' "${WOMARCHY_OOBE_USER:-${win_user:-whyprland}}" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')
+[[ $default_user =~ ^[a-z_] ]] || default_user=whyprland
+(( defaults )) && default_user="${WOMARCHY_OOBE_USER:-whyprland}"
 
 # Remove a half-created account so the next OOBE run starts clean.
 abort_user() { err "$1"; userdel -r "$user" >/dev/null 2>&1; exit 1; }
@@ -147,14 +146,13 @@ else
     fi
     (( defaults || ! tty || attempt == 3 )) && exit 1
   done
-  ask fullname "Full name (for git and XCompose; optional)" "${WOMARCHY_OOBE_FULLNAME:-}"
-  ask email "Email (for git and XCompose; optional)" "${WOMARCHY_OOBE_EMAIL:-}"
+  ask fullname "Full name (optional)" "${WOMARCHY_OOBE_FULLNAME:-}"
 
   say "Creating user '$user' (UID $UID_DEFAULT, groups: wheel)"
   useradd -m -u "$UID_DEFAULT" -U -G wheel -s /bin/bash -c "${fullname:-$user}" "$user" || { err "useradd failed"; exit 1; }
 
   if (( defaults )) || [[ -n ${WOMARCHY_OOBE_PASSWORD:-} ]]; then
-    printf '%s:%s\n' "$user" "${WOMARCHY_OOBE_PASSWORD:-omarchy}" | chpasswd ||
+    printf '%s:%s\n' "$user" "${WOMARCHY_OOBE_PASSWORD:-whyprland}" | chpasswd ||
       abort_user "setting the password failed (chpasswd)"
   else
     pw_ok=0
@@ -165,8 +163,6 @@ else
     (( pw_ok )) || abort_user "no password set; the setup will start again next time"
   fi
 fi
-fullname="${fullname:-$(getent passwd "$user" | cut -d: -f5 | cut -d, -f1)}"
-email="${email:-${WOMARCHY_OOBE_EMAIL:-}}"
 
 # wheel may sudo; passwordless only on request.
 install -d -m 0750 /etc/sudoers.d
@@ -225,15 +221,14 @@ else
   done
 fi
 
-# --- Omarchy user provisioning ---------------------------------------------------
+# --- user configuration (Hyprland defaults in ~/.config) ------------------------------
 if [[ ${WOMARCHY_OOBE_SKIP_PROVISION:-0} != 1 ]]; then
-  say "Setting up Omarchy for $user (themes, apps, dev tools; needs network, a few minutes)"
+  say "Setting up the Hyprland configuration for $user"
   home=$(getent passwd "$user" | cut -d: -f6)
   if ! runuser -u "$user" -- env -i HOME="$home" USER="$user" LOGNAME="$user" SHELL=/bin/bash \
       PATH="$PATH" LANG="$(sed -n 's/^LANG=//p' /etc/locale.conf)" TERM="${TERM:-xterm-256color}" \
-      OMARCHY_USER_NAME="$fullname" OMARCHY_USER_EMAIL="$email" \
       womarchy-provision-user --force; then
-    err "Omarchy user setup did not finish. Run it again later with: womarchy-provision-user --force"
+    err "user setup did not finish. Run it again later with: womarchy-provision-user --force"
   fi
 fi
 
@@ -243,9 +238,9 @@ date -Is >"$DONE"
 cat <<EOF
 
    Done. You are '$user'.
-   Start the Omarchy desktop from Windows: run "omarchy" in cmd or PowerShell,
-   or use the Omarchy entry in the Start menu.
-   Keys Windows reserves moved: layout toggle = Super+Alt+L, close all = Super+Ctrl+Alt+Backspace.
+   Start the desktop from Windows: run "whyprland" in cmd or PowerShell,
+   or use the Whyprland entry in the Start menu.
+   Keys: Super+Return terminal, Super+Space launcher, Super+Q close, Super+Escape log out.
 
 EOF
 exit 0

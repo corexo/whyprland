@@ -7,8 +7,8 @@ picture.
 
 | Path | Contents |
 |---|---|
-| [install.ps1](../install.ps1) | The one-step installer for users (WSL check/update, download, `omarchy install`). |
-| [windows/omarchy](../windows/omarchy) | `omarchy.exe` (Rust): viewer, launcher, installer. |
+| [install.ps1](../install.ps1) | The one-step installer for users (WSL check/update, download, `whyprland install`). |
+| [windows/whyprland](../windows/whyprland) | `whyprland.exe` (Rust): viewer, launcher, installer. |
 | [protocol/wdp.h](../protocol/wdp.h) | The display protocol between the compositor and the viewer: the reference for both sides. |
 | [patches/](../patches/README.md) | Our patches to aquamarine, Hyprland and Mesa, plus the pinned versions. |
 | [linux/packages](../linux/packages) | PKGBUILDs for the `[womarchy]` pacman repo (same package names as Arch, so they replace Arch's), and `womarchy-session`. |
@@ -20,16 +20,16 @@ picture.
 ## Prerequisites
 
 - Windows 11 with WSL 3.0.1 or newer and a GPU driver with WSL support.
-- [Rust](https://rustup.rs) (stable, MSVC toolchain) for `omarchy.exe`.
+- [Rust](https://rustup.rs) (stable, MSVC toolchain) for `whyprland.exe`.
 - An Arch Linux WSL distro for building packages and images. [linux/image/README.md](../linux/image/README.md) shows how to create it (`setup-build-distro.sh`).
-- For testing, an installed Omarchy distro. Name test distros `omarchy-test*` and remove them when you're done.
+- For testing, an installed Whyprland distro. Name test distros `whyprland-test*` and remove them when you're done.
 
 ## Building
 
-**omarchy.exe**
+**whyprland.exe**
 ```
-cd windows/omarchy
-cargo build --release                 # target/release/omarchy.exe
+cd windows/whyprland
+cargo build --release                 # target/release/whyprland.exe
 cargo test --release                  # protocol parsing and monitor-id unit tests
 cargo clippy --release --all-targets -- -D warnings   # must stay clean
 ```
@@ -54,17 +54,17 @@ The lite image leaves out Omarchy's large preinstalled apps (LibreOffice, OBS, .
 
 Install the new packages into a test distro, then start it with the dev build:
 ```
-wsl -d omarchy-test -u root -- pacman -U --noconfirm /mnt/<repo>/out/repo/<package>.pkg.tar.zst
-windows\omarchy\target\release\omarchy.exe --distro omarchy-test --windowed 1600x900 --stats
+wsl -d whyprland-test -u root -- pacman -U --noconfirm /mnt/<repo>/out/repo/<package>.pkg.tar.zst
+windows\whyprland\target\release\whyprland.exe --distro whyprland-test --windowed 1600x900 --stats
 ```
 - `--windowed WxH [--monitors N] [--scale S]` runs in windows instead of full screen; `--monitors 3` simulates three monitors.
 - `--session PATH` runs another session script (e.g. the repo's copy of `womarchy-session`).
-- `--input-script FILE` drives the session (keys, typing, pointer, screenshots; see `windows/omarchy/src/script.rs`).
+- `--input-script FILE` drives the session (keys, typing, pointer, screenshots; see `windows/whyprland/src/script.rs`).
 - `--dump-frame FILE --dump-after FRAMES` saves what the first output shows.
 
 ## Tests
 
-End-to-end tests run from Windows (PowerShell) against an installed distro (`-Distro omarchy-test`):
+End-to-end tests run from Windows (PowerShell) against an installed distro (`-Distro whyprland-test`):
 
 | Test | Checks |
 |---|---|
@@ -73,7 +73,7 @@ End-to-end tests run from Windows (PowerShell) against an installed distro (`-Di
 | `lab/gpu-clients-test.ps1` | A GL (es2gears) and a Vulkan (vkcube) client render on the GPU inside the session. |
 | `lab/display-change-test.ps1` | Live monitor add/remove/resize with fake monitors; outputs and monitor rules follow. |
 | `lab/fullscreen-test.ps1` | The real thing on your monitors (takes over the screens for ~1.5 min): apps on each monitor, DPI, a Windows-side screen capture, frame rates and the viewer's CPU time. |
-| `lab/installer-test.ps1` | `omarchy install`/`uninstall` on a throwaway distro. |
+| `lab/installer-test.ps1` | `whyprland install`/`uninstall` on a throwaway distro. |
 | `linux/image/test-image.ps1` | Installs a freshly built image as a throwaway distro and checks the system and user setup. |
 
 Benchmarks behind design decisions (for example `bench-upload.c` for the Mesa upload-heap patch, `bench-dax-alloc.c` for shm buffer allocation) are listed in [lab/README.md](../lab/README.md). Their results are in [WORKLOG.md](WORKLOG.md).
@@ -83,7 +83,7 @@ Benchmarks behind design decisions (for example `bench-upload.c` for the Mesa up
 [protocol/wdp.h](../protocol/wdp.h) is the specification. A change touches all of these:
 - `wdp.h` itself (bump `WDP_VERSION` for incompatible changes);
 - its copy in the aquamarine backend (`src/backend/wsl/wdp.h`);
-- `windows/omarchy/src/wdp.rs`;
+- `windows/whyprland/src/wdp.rs`;
 - for the clipboard, `linux/packages/womarchy-session/womarchy-clipd`.
 
 The viewer and the compositor refuse to talk across versions, so release them together. Adding a message type doesn't need a version bump: receivers skip types they don't know (that's how `CLIP_IMAGE` was added). Clipboard-only additions can wait for the next aquamarine change to reach its copy of the header, since aquamarine doesn't use them.
@@ -103,21 +103,20 @@ All of it runs on GitHub's free runners for public repositories; nothing runs on
 
 | Workflow | When | What |
 |---|---|---|
-| [checks](../.github/workflows/checks.yml) | Every push and pull request | `omarchy.exe` build, unit tests and clippy; shellcheck and `bash -n`; Python and PowerShell parse checks; docs links ([tools/check-links.py](../tools/check-links.py)); secrets and personal paths ([tools/check-secrets.py](../tools/check-secrets.py)). A few minutes. |
+| [checks](../.github/workflows/checks.yml) | Every push and pull request | `whyprland.exe` build, unit tests and clippy; shellcheck and `bash -n`; Python and PowerShell parse checks; docs links ([tools/check-links.py](../tools/check-links.py)); secrets and personal paths ([tools/check-secrets.py](../tools/check-secrets.py)). A few minutes. |
 | [packages](../.github/workflows/packages.yml) | On demand (Actions → packages → Run workflow) | Builds the listed packages in an Arch container on Omarchy's package snapshot. Then **waits for a maintainer's approval** before signing and publishing them to the `packages` release (the signed `[womarchy]` repository). |
-| [snapshot watch](../.github/workflows/snapshot-watch.yml) | Daily | If Omarchy's snapshot moved: checks our packages still install and link on it, and opens or closes a `rebuild-needed` issue. Under a minute when nothing changed. |
 
 The signing key exists only as the `womarchy-repo` environment's secret. That environment only runs on `main` and requires a reviewer's approval.
 
 ## Releasing
 
 1. Change the code and push; `checks` must pass.
-2. Rebuild packages whose sources changed: run the **packages** workflow with their names (e.g. `womarchy-session womarchy-compat`), then approve its publish step. Installed systems pick them up with their next `omarchy update`.
+2. Rebuild packages whose sources changed: run the **packages** workflow with their names (e.g. `womarchy-session womarchy-compat`), then approve its publish step. Installed systems pick them up with their next `whyprland update`.
 3. For a new image (when the overlay or the first-run experience changed):
    - fetch the signed repository: `linux/packages/fetch-signed-db.sh --fetch-packages --prune`;
    - build the lite image ([linux/image/README.md](../linux/image/README.md)) and test it with `linux/image/test-image.ps1`.
-4. Set the new version in [windows/omarchy/Cargo.toml](../windows/omarchy/Cargo.toml) (`omarchy --version` and `omarchy status` print it), build `omarchy.exe`, then create a GitHub release with:
-   - `Omarchy.wsl` (the lite image), `omarchy.exe`, and a `.sha256` file for each (`sha256sum` format; the installers check them);
+4. Set the new version in [windows/whyprland/Cargo.toml](../windows/whyprland/Cargo.toml) (`whyprland --version` and `whyprland status` print it), build `whyprland.exe`, then create a GitHub release with:
+   - `Whyprland.wsl` (the lite image), `whyprland.exe`, and a `.sha256` file for each (`sha256sum` format; the installers check them);
    - a copy of [install.ps1](../install.ps1).
 
    Release asset names must not contain `:`; `build-all.sh` already renames packages that would.

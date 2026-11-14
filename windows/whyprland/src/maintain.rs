@@ -1,4 +1,4 @@
-//! Keeping an installed Omarchy distro healthy: `omarchy update | rollback | backup | restore`.
+//! Keeping an installed Whyprland distro healthy: `whyprland update | rollback | backup | restore`.
 //!
 //! Three levels of "undo", from cheap to complete:
 //!  * rollback: the distro records its installed package list before every update (a pacman hook, a
@@ -7,10 +7,10 @@
 //!  * backup / restore: the whole distro as one file (`wsl --export` / `wsl --import`). Takes a few
 //!    minutes and about as much disk as the distro uses; only the newest backup per distro is kept.
 //!    Covers everything, including the home directory.
-//!  * starting over: `omarchy uninstall`, then `omarchy install`.
+//!  * starting over: `whyprland uninstall`, then `whyprland install`.
 //!
-//! `update` runs Omarchy's own updater inside the distro (the same as "Update System" in the desktop).
-//! Whether it makes a full backup first is asked once and remembered in %LOCALAPPDATA%\Omarchy\settings.txt;
+//! `update` runs womarchy-update (`sudo pacman -Syu`) inside the distro.
+//! Whether it makes a full backup first is asked once and remembered in %LOCALAPPDATA%\Whyprland\settings.txt;
 //! `--backup` / `--no-backup` decide for one run, `--ask` asks again.
 
 use crate::install::{distro_exists, known_folder, wsl};
@@ -29,9 +29,9 @@ use windows::Win32::UI::Shell::FOLDERID_LocalAppData;
 const SETTING_BACKUP: &str = "backup-before-update";
 const ROLLBACK: &str = "/usr/bin/womarchy-rollback";
 
-/// %LOCALAPPDATA%\Omarchy: settings and the default backup folder (not the launcher's Programs folder).
+/// %LOCALAPPDATA%\Whyprland: settings and the default backup folder (not the launcher's Programs folder).
 fn data_dir() -> PathBuf {
-    known_folder(&FOLDERID_LocalAppData).map(|p| p.join("Omarchy")).unwrap_or_else(|_| PathBuf::from("."))
+    known_folder(&FOLDERID_LocalAppData).map(|p| p.join("Whyprland")).unwrap_or_else(|_| PathBuf::from("."))
 }
 
 fn backup_dir() -> PathBuf {
@@ -50,13 +50,13 @@ fn set_setting(key: &str, value: &str) {
     lines.push(format!("{}={}", key, value));
     let _ = std::fs::create_dir_all(data_dir());
     if std::fs::write(&path, lines.join("\n") + "\n").is_err() {
-        eprintln!("omarchy: could not save the setting in {}", path.display());
+        eprintln!("whyprland: could not save the setting in {}", path.display());
     }
 }
 
-/// Is a desktop session of this distro running (omarchy.exe holds a named mutex per distro)?
+/// Is a desktop session of this distro running (whyprland.exe holds a named mutex per distro)?
 fn desktop_running(distro: &str) -> bool {
-    let name = HSTRING::from(format!("Local\\omarchy-viewer-{}", distro.to_ascii_lowercase()));
+    let name = HSTRING::from(format!("Local\\whyprland-viewer-{}", distro.to_ascii_lowercase()));
     match unsafe { OpenMutexW(SYNCHRONIZATION_SYNCHRONIZE, false, &name) } {
         Ok(h) => {
             let _ = unsafe { CloseHandle(h) };
@@ -146,25 +146,25 @@ fn distro_location(distro: &str) -> Option<PathBuf> {
     }
 }
 
-/// `omarchy backup [--to DIR]`: export the distro to one file and keep only the newest.
+/// `whyprland backup [--to DIR]`: export the distro to one file and keep only the newest.
 pub fn backup(distro: &str, to: Option<&str>) -> i32 {
     if !distro_exists(distro) {
-        eprintln!("omarchy: the {} distro is not installed", distro);
+        eprintln!("whyprland: the {} distro is not installed", distro);
         return 1;
     }
     if desktop_running(distro) {
-        eprintln!("omarchy: the desktop is running; log out of it first (a backup needs the distro stopped)");
+        eprintln!("whyprland: the desktop is running; log out of it first (a backup needs the distro stopped)");
         return 1;
     }
     let dir = to.map(PathBuf::from).unwrap_or_else(backup_dir);
     if let Err(e) = std::fs::create_dir_all(&dir) {
-        eprintln!("omarchy: cannot create {}: {}", dir.display(), e);
+        eprintln!("whyprland: cannot create {}: {}", dir.display(), e);
         return 1;
     }
     let used = used_bytes(distro);
     if let (Some(used), Some(free)) = (used, free_bytes(&dir)) {
         if free < used + used / 10 {
-            eprintln!("omarchy: not enough free space in {} ({} free, the backup needs about {})", dir.display(), gb(free), gb(used));
+            eprintln!("whyprland: not enough free space in {} ({} free, the backup needs about {})", dir.display(), gb(free), gb(used));
             return 1;
         }
     }
@@ -175,7 +175,7 @@ pub fn backup(distro: &str, to: Option<&str>) -> i32 {
     let _ = wsl().args(["--terminate", distro]).stdout(Stdio::null()).status();
     if !wsl().arg("--export").arg(distro).arg(&file).status().is_ok_and(|s| s.success()) {
         let _ = std::fs::remove_file(&file);
-        eprintln!("omarchy: wsl --export failed; no backup was made");
+        eprintln!("whyprland: wsl --export failed; no backup was made");
         return 1;
     }
     for old in backups(&dir, distro).into_iter().filter(|p| *p != file) {
@@ -183,28 +183,28 @@ pub fn backup(distro: &str, to: Option<&str>) -> i32 {
     }
     let size = std::fs::metadata(&file).map(|m| m.len()).unwrap_or(0);
     println!("Backup done in {} s ({}): {}", start.elapsed().as_secs(), gb(size), file.display());
-    println!("Restore it with:  omarchy restore{}", distro_arg(distro));
+    println!("Restore it with:  whyprland restore{}", distro_arg(distro));
     0
 }
 
-/// `omarchy restore [FILE] [--yes]`: replace the distro with a backup (the newest one by default).
+/// `whyprland restore [FILE] [--yes]`: replace the distro with a backup (the newest one by default).
 pub fn restore(distro: &str, file: Option<&str>, yes: bool) -> i32 {
     let file = match file {
         Some(f) => PathBuf::from(f),
         None => match backups(&backup_dir(), distro).pop() {
             Some(f) => f,
             None => {
-                eprintln!("omarchy: no backup of {} in {} (make one with: omarchy backup)", distro, backup_dir().display());
+                eprintln!("whyprland: no backup of {} in {} (make one with: whyprland backup)", distro, backup_dir().display());
                 return 1;
             }
         },
     };
     if !file.is_file() {
-        eprintln!("omarchy: {} not found", file.display());
+        eprintln!("whyprland: {} not found", file.display());
         return 1;
     }
     if desktop_running(distro) {
-        eprintln!("omarchy: the desktop is running; log out of it first");
+        eprintln!("whyprland: the desktop is running; log out of it first");
         return 1;
     }
     let size = std::fs::metadata(&file).map(|m| m.len()).unwrap_or(0);
@@ -221,7 +221,7 @@ pub fn restore(distro: &str, file: Option<&str>, yes: bool) -> i32 {
     if exists {
         let _ = wsl().args(["--terminate", distro]).stdout(Stdio::null()).status();
         if !wsl().args(["--unregister", distro]).stdout(Stdio::null()).status().is_ok_and(|s| s.success()) {
-            eprintln!("omarchy: wsl --unregister {} failed; nothing was changed", distro);
+            eprintln!("whyprland: wsl --unregister {} failed; nothing was changed", distro);
             return 1;
         }
     }
@@ -229,37 +229,37 @@ pub fn restore(distro: &str, file: Option<&str>, yes: bool) -> i32 {
     let _ = std::fs::create_dir_all(&location);
     let start = Instant::now();
     if !wsl().arg("--import").arg(distro).arg(&location).arg(&file).status().is_ok_and(|s| s.success()) {
-        eprintln!("omarchy: wsl --import failed. The backup file is untouched; run `omarchy restore` again.");
+        eprintln!("whyprland: wsl --import failed. The backup file is untouched; run `whyprland restore` again.");
         return 1;
     }
-    println!("Restored in {} s. Start it with:  omarchy{}", start.elapsed().as_secs(), distro_arg(distro));
+    println!("Restored in {} s. Start it with:  whyprland{}", start.elapsed().as_secs(), distro_arg(distro));
     0
 }
 
-/// `omarchy rollback [ARGS]`: undo the package changes of the last update (womarchy-rollback in the distro).
+/// `whyprland rollback [ARGS]`: undo the package changes of the last update (womarchy-rollback in the distro).
 pub fn rollback(distro: &str, args: &[String]) -> i32 {
     if !distro_exists(distro) {
-        eprintln!("omarchy: the {} distro is not installed", distro);
+        eprintln!("whyprland: the {} distro is not installed", distro);
         return 1;
     }
     let present = wsl().args(["-d", distro, "-u", "root", "--exec", "test", "-x", ROLLBACK]).stdin(Stdio::null()).status().is_ok_and(|s| s.success());
     if !present {
-        eprintln!("omarchy: this Omarchy install has no rollback support yet; it arrives with the next `omarchy update`");
+        eprintln!("whyprland: this Whyprland install has no rollback support yet; it arrives with the next `whyprland update`");
         return 1;
     }
     wsl().args(["-d", distro, "-u", "root", "--exec", ROLLBACK]).args(args).status().ok().and_then(|s| s.code()).unwrap_or(1)
 }
 
-/// `omarchy update [--backup | --no-backup | --ask]`: optional full backup, then Omarchy's updater.
+/// `whyprland update [--backup | --no-backup | --ask]`: optional full backup, then `pacman -Syu` (womarchy-update).
 pub fn update(distro: &str, backup_choice: Option<bool>, ask_again: bool) -> i32 {
     if !distro_exists(distro) {
-        eprintln!("omarchy: the {} distro is not installed (omarchy install)", distro);
+        eprintln!("whyprland: the {} distro is not installed (whyprland install)", distro);
         return 1;
     }
-    // Omarchy's updater asks questions (confirm, sudo password, conflicts); without a terminal its
+    // pacman asks questions (confirm, sudo password, conflicts); without a terminal its
     // prompts spin instead of failing
     if !std::io::stdin().is_terminal() {
-        eprintln!("omarchy: run `omarchy update` in a terminal window: the updater asks questions");
+        eprintln!("whyprland: run `whyprland update` in a terminal window: the updater asks questions");
         return 2;
     }
     let remembered = if ask_again { None } else { setting(SETTING_BACKUP).map(|v| v == "yes") };
@@ -268,42 +268,42 @@ pub fn update(distro: &str, backup_choice: Option<bool>, ask_again: bool) -> i32
         None => {
             let size = used_bytes(distro).map(gb).unwrap_or_else(|| "several GB".into());
             println!("Updates can be undone in two ways:");
-            println!("  * `omarchy rollback` puts back the package versions from before the update.");
+            println!("  * `whyprland rollback` puts back the package versions from before the update.");
             println!("    It's always available and costs almost nothing.");
-            println!("  * A full backup before each update (`omarchy restore` brings back everything, your files");
+            println!("  * A full backup before each update (`whyprland restore` brings back everything, your files");
             println!("    included). It takes a few minutes and about {} of disk; only the newest is kept.", size);
             let yes = ask("Make a full backup before each update? [y/N] ").to_ascii_lowercase().starts_with('y');
             set_setting(SETTING_BACKUP, if yes { "yes" } else { "no" });
-            println!("Remembered. (`omarchy update --ask` asks again; --backup / --no-backup decide for one update.)\n");
+            println!("Remembered. (`whyprland update --ask` asks again; --backup / --no-backup decide for one update.)\n");
             yes
         }
     };
     if backup_first {
         if desktop_running(distro) {
-            eprintln!("omarchy: the desktop is running and a backup needs the distro stopped.");
-            eprintln!("Log out of the desktop first, or update without a backup:  omarchy update --no-backup");
+            eprintln!("whyprland: the desktop is running and a backup needs the distro stopped.");
+            eprintln!("Log out of the desktop first, or update without a backup:  whyprland update --no-backup");
             return 1;
         }
         let rc = backup(distro, None);
         if rc != 0 {
-            eprintln!("omarchy: the backup failed, so nothing was updated");
+            eprintln!("whyprland: the backup failed, so nothing was updated");
             return rc;
         }
     }
-    println!("Updating {} with Omarchy's updater (it may ask for your Linux password) ...\n", distro);
-    let rc = wsl().args(["-d", distro, "--cd", "~", "--exec", "bash", "-lc", "omarchy-update"]).status().ok().and_then(|s| s.code()).unwrap_or(1);
+    println!("Updating {} with pacman -Syu (it may ask for your Linux password) ...\n", distro);
+    let rc = wsl().args(["-d", distro, "--cd", "~", "--exec", "bash", "-lc", "womarchy-update"]).status().ok().and_then(|s| s.code()).unwrap_or(1);
     if rc != 0 {
-        eprintln!("\nomarchy: the update did not finish (exit code {}).", rc);
-        eprintln!("If it broke something: `omarchy rollback` restores the previous packages{}.", if backup_first { ", `omarchy restore` the whole distro" } else { "" });
+        eprintln!("\nwhyprland: the update did not finish (exit code {}).", rc);
+        eprintln!("If it broke something: `whyprland rollback` restores the previous packages{}.", if backup_first { ", `whyprland restore` the whole distro" } else { "" });
     }
     rc
 }
 
-/// One line for `omarchy status`: the newest full backup, if any.
+/// One line for `whyprland status`: the newest full backup, if any.
 pub fn backup_summary(distro: &str) -> String {
     match backups(&backup_dir(), distro).pop() {
         Some(f) => format!("{} ({})", f.display(), gb(std::fs::metadata(&f).map(|m| m.len()).unwrap_or(0))),
-        None => format!("none (full backups: omarchy backup; before each update: {})", if setting(SETTING_BACKUP).as_deref() == Some("yes") { "on" } else { "off" }),
+        None => format!("none (full backups: whyprland backup; before each update: {})", if setting(SETTING_BACKUP).as_deref() == Some("yes") { "on" } else { "off" }),
     }
 }
 
@@ -313,14 +313,14 @@ mod tests {
 
     #[test]
     fn backups_are_found_per_distro_and_sorted_by_time() {
-        let dir = std::env::temp_dir().join(format!("omarchy-backup-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("whyprland-backup-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        for n in ["Omarchy-20261001-120000.tar", "Omarchy-20260930-090000.tar", "Other-20261002-000000.tar", "Omarchy-notes.txt"] {
+        for n in ["Whyprland-20261001-120000.tar", "Whyprland-20260930-090000.tar", "Other-20261002-000000.tar", "Whyprland-notes.txt"] {
             std::fs::write(dir.join(n), b"x").unwrap();
         }
-        let names: Vec<String> = backups(&dir, "Omarchy").iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect();
+        let names: Vec<String> = backups(&dir, "Whyprland").iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect();
         let _ = std::fs::remove_dir_all(&dir);
-        assert_eq!(names, ["Omarchy-20260930-090000.tar", "Omarchy-20261001-120000.tar"]);
+        assert_eq!(names, ["Whyprland-20260930-090000.tar", "Whyprland-20261001-120000.tar"]);
     }
 
     #[test]

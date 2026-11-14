@@ -1,13 +1,13 @@
-//! omarchy.exe: start the Omarchy desktop (Hyprland in WSL2) full-screen on Windows, and return to the
-//! prompt when the session ends. Also installs, removes and checks the Omarchy WSL distro.
+//! whyprland.exe: start the Whyprland desktop (Hyprland in WSL2) full-screen on Windows, and return to the
+//! prompt when the session ends. Also installs, removes and checks the Whyprland WSL distro.
 //!
-//!   omarchy [--distro NAME] [--user USER]                     start the desktop
-//!   omarchy install [IMAGE.wsl|URL] [--distro NAME] [--location DIR] [--launcher-only | --no-launcher]
-//!   omarchy uninstall [--distro NAME] [--yes]
-//!   omarchy status [--distro NAME]
-//!   omarchy update [--backup | --no-backup | --ask]           Omarchy's updater, after an optional full backup
-//!   omarchy rollback [--list] [--to POINT] [--yes]            undo the package changes of an update
-//!   omarchy backup [--to DIR] / omarchy restore [FILE]        the whole distro as one file
+//!   whyprland [--distro NAME] [--user USER]                     start the desktop
+//!   whyprland install [IMAGE.wsl|URL] [--distro NAME] [--location DIR] [--launcher-only | --no-launcher]
+//!   whyprland uninstall [--distro NAME] [--yes]
+//!   whyprland status [--distro NAME]
+//!   whyprland update [--backup | --no-backup | --ask]           pacman -Syu, after an optional full backup
+//!   whyprland rollback [--list] [--to POINT] [--yes]            undo the package changes of an update
+//!   whyprland backup [--to DIR] / whyprland restore [FILE]        the whole distro as one file
 //! Development: --windowed WxH [--monitors N] [--scale S], --session PATH, --port N, --stats,
 //! --dump-frame FILE [--dump-after FRAMES], --input-script FILE [--shot-dir DIR]
 //!
@@ -69,23 +69,23 @@ struct Args {
 }
 
 fn usage() -> ! {
-    println!("usage: omarchy [--distro NAME] [--user USER]       start the Omarchy desktop (log out to come back here)");
-    println!("       omarchy install [IMAGE.wsl|URL] [--distro NAME] [--location DIR] [--launcher-only | --no-launcher]");
-    println!("       omarchy uninstall [--distro NAME] [--yes]");
-    println!("       omarchy status [--distro NAME]                   what's installed and how it's doing (for bug reports)");
-    println!("       omarchy update [--backup | --no-backup | --ask]   update Omarchy (asks once whether to back up first)");
-    println!("       omarchy rollback [--list] [--to POINT] [--yes]   undo the package changes of the last update");
-    println!("       omarchy backup [--to DIR]                        save the whole distro to one file (newest kept)");
-    println!("       omarchy restore [FILE] [--yes]                   replace the distro with a backup");
+    println!("usage: whyprland [--distro NAME] [--user USER]       start the Whyprland desktop (log out to come back here)");
+    println!("       whyprland install [IMAGE.wsl|URL] [--distro NAME] [--location DIR] [--launcher-only | --no-launcher]");
+    println!("       whyprland uninstall [--distro NAME] [--yes]");
+    println!("       whyprland status [--distro NAME]                   what's installed and how it's doing (for bug reports)");
+    println!("       whyprland update [--backup | --no-backup | --ask]   update Whyprland (asks once whether to back up first)");
+    println!("       whyprland rollback [--list] [--to POINT] [--yes]   undo the package changes of the last update");
+    println!("       whyprland backup [--to DIR]                        save the whole distro to one file (newest kept)");
+    println!("       whyprland restore [FILE] [--yes]                   replace the distro with a backup");
     println!("development: --windowed WxH [--monitors N] [--scale S], --session PATH, --port N, --stats,");
     println!("             --dump-frame FILE [--dump-after FRAMES], --input-script FILE [--shot-dir DIR]");
-    println!("Ctrl+Alt+End minimises the desktop. OMARCHY_DISTRO sets the default distro name (Omarchy).");
-    println!("omarchy --version prints this program's version.");
+    println!("Ctrl+Alt+End minimises the desktop. WHYPRLAND_DISTRO sets the default distro name (Whyprland).");
+    println!("whyprland --version prints this program's version.");
     std::process::exit(0)
 }
 
 fn bad_arg(what: &str) -> ! {
-    eprintln!("omarchy: {} (see omarchy --help)", what);
+    eprintln!("whyprland: {} (see whyprland --help)", what);
     std::process::exit(2)
 }
 
@@ -131,7 +131,7 @@ fn parse_args() -> Args {
             "--dump-after" => a.dump_after = value("--dump-after").parse().unwrap_or_else(|_| bad_arg("--dump-after takes a number of frames")),
             "-h" | "--help" => usage(),
             "-V" | "--version" => {
-                println!("omarchy {}", env!("CARGO_PKG_VERSION"));
+                println!("whyprland {}", env!("CARGO_PKG_VERSION"));
                 std::process::exit(0)
             }
             other => bad_arg(&format!("unknown argument: {}", other)),
@@ -153,10 +153,10 @@ fn hex(b: &[u8]) -> String {
 }
 
 fn default_distro() -> String {
-    std::env::var("OMARCHY_DISTRO").unwrap_or_else(|_| "Omarchy".into())
+    std::env::var("WHYPRLAND_DISTRO").unwrap_or_else(|_| "Whyprland".into())
 }
 
-/// `omarchy install|uninstall|status|update|rollback|backup|restore ...`; returns None when the first
+/// `whyprland install|uninstall|status|update|rollback|backup|restore ...`; returns None when the first
 /// argument is not a subcommand.
 fn subcommand() -> Option<i32> {
     let argv: Vec<String> = std::env::args_os().skip(1).map(|a| a.to_string_lossy().into_owned()).collect();
@@ -187,13 +187,13 @@ fn subcommand() -> Option<i32> {
             ("backup", "--to") => to = it.next(),
             ("install" | "restore", other) if !other.starts_with('-') && file.is_none() => file = Some(other.to_string()),
             (_, other) => {
-                eprintln!("omarchy {}: unknown argument: {} (omarchy --help)", cmd, other);
+                eprintln!("whyprland {}: unknown argument: {} (whyprland --help)", cmd, other);
                 return Some(2);
             }
         }
     }
     if !install::valid_distro_name(&distro) {
-        eprintln!("omarchy: '{}' is not a valid distro name (letters, digits, '.', '_', '-')", distro);
+        eprintln!("whyprland: '{}' is not a valid distro name (letters, digits, '.', '_', '-')", distro);
         return Some(2);
     }
     opts.image = file.clone();
@@ -209,10 +209,10 @@ fn subcommand() -> Option<i32> {
 }
 
 /// Started from Explorer or the Start menu, we own a fresh console window nobody needs to look at.
-/// (A relaunch after first-run setup inherits that fact through OMARCHY_OWN_CONSOLE.)
+/// (A relaunch after first-run setup inherits that fact through WHYPRLAND_OWN_CONSOLE.)
 fn own_console() -> bool {
     let mut pids = [0u32; 4];
-    std::env::var("OMARCHY_OWN_CONSOLE").is_ok_and(|v| v == "1") || unsafe { GetConsoleProcessList(&mut pids) == 1 }
+    std::env::var("WHYPRLAND_OWN_CONSOLE").is_ok_and(|v| v == "1") || unsafe { GetConsoleProcessList(&mut pids) == 1 }
 }
 
 fn set_console_visible(visible: bool) {
@@ -226,7 +226,7 @@ fn set_console_visible(visible: bool) {
 
 /// Report a fatal error (and keep a console we own open long enough to read it).
 fn fail(hidden_console: bool, msg: &str) -> ! {
-    eprintln!("omarchy: {}", msg);
+    eprintln!("whyprland: {}", msg);
     if hidden_console {
         set_console_visible(true);
         pause();
@@ -262,7 +262,7 @@ fn kill_with_us(child: &std::process::Child) {
 /// windows back instead of starting a second session, which would replace the first.
 fn already_running(distro: &str) -> bool {
     unsafe {
-        let name = HSTRING::from(format!("Local\\omarchy-viewer-{}", distro.to_ascii_lowercase()));
+        let name = HSTRING::from(format!("Local\\whyprland-viewer-{}", distro.to_ascii_lowercase()));
         let mutex = CreateMutexW(None, true, &name);
         if mutex.is_err() || GetLastError() != ERROR_ALREADY_EXISTS {
             std::mem::forget(mutex); // held until we exit
@@ -273,7 +273,7 @@ fn already_running(distro: &str) -> bool {
             let n = GetClassNameW(h, &mut class) as usize;
             let mut pid = 0u32;
             GetWindowThreadProcessId(h, Some(&mut pid));
-            if String::from_utf16_lossy(&class[..n]) == "OmarchyViewer" && pid != GetCurrentProcessId() {
+            if String::from_utf16_lossy(&class[..n]) == "WhyprlandViewer" && pid != GetCurrentProcessId() {
                 let _ = ShowWindow(h, SW_RESTORE);
                 let _ = SetForegroundWindow(h);
             }
@@ -343,7 +343,7 @@ fn watch_display_changes(args: &Args, current: Arc<Mutex<Vec<wdp::Monitor>>>) {
         if now.is_empty() || *cur == now {
             return;
         }
-        eprintln!("[omarchy] display layout changed: {}", monitors::to_env(&now));
+        eprintln!("[whyprland] display layout changed: {}", monitors::to_env(&now));
         viewer::reconcile_windows(&now);
         viewer::send(wdp::monitors(&now)); // dropped if not connected yet; the connect step sends `current`
         let _ = tx.send(monitors::to_env(&now));
@@ -354,7 +354,7 @@ fn watch_display_changes(args: &Args, current: Arc<Mutex<Vec<wdp::Monitor>>>) {
 /// Connect to the compositor, check it knows the token, then run the display side of the session.
 fn run_display(vm: String, port: u32, token: [u8; wdp::TOKEN_BYTES], clip_token: [u8; wdp::TOKEN_BYTES], current: Arc<Mutex<Vec<wdp::Monitor>>>, opts: viewer::RenderOptions) -> Result<(), String> {
     let vm_guid = net::parse_guid(&vm).ok_or_else(|| format!("the session reported a bad VM id: {}", vm))?;
-    eprintln!("[omarchy] session VM {}, connecting to port {}", vm, port);
+    eprintln!("[whyprland] session VM {}, connecting to port {}", vm, port);
     let start = Instant::now();
     let conn = loop {
         match net::Conn::connect(vm_guid, port) {
@@ -383,7 +383,7 @@ fn run_display(vm: String, port: u32, token: [u8; wdp::TOKEN_BYTES], clip_token:
         return Err("the desktop sent an invalid VM id".into());
     }
     eprintln!(
-        "[omarchy] connected after {:.1} s; transport = {}",
+        "[whyprland] connected after {:.1} s; transport = {}",
         start.elapsed().as_secs_f64(),
         if transport == wdp::TRANSPORT_SECTION { "shared memory" } else { "inline" }
     );
@@ -415,10 +415,10 @@ fn main() {
         fail(hidden_console, &format!("'{}' is not a valid distro name", args.distro));
     }
     if !install::distro_exists(&args.distro) {
-        fail(hidden_console, &format!("the {} WSL distro is not installed. Run:  omarchy install", args.distro));
+        fail(hidden_console, &format!("the {} WSL distro is not installed. Run:  whyprland install", args.distro));
     }
     if already_running(&args.distro) {
-        eprintln!("omarchy: the desktop is already running; switched to it");
+        eprintln!("whyprland: the desktop is already running; switched to it");
         std::process::exit(0);
     }
     if hidden_console {
@@ -549,7 +549,7 @@ fn main() {
         let mut again = Command::new(me);
         again.args(std::env::args_os().skip(1));
         if hidden_console {
-            again.env("OMARCHY_OWN_CONSOLE", "1");
+            again.env("WHYPRLAND_OWN_CONSOLE", "1");
         }
         let status = again.status();
         std::process::exit(status.ok().and_then(|s| s.code()).unwrap_or(1));

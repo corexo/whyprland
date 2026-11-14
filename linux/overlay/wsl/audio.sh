@@ -1,8 +1,8 @@
 # womarchy WSL leaf: PipeWire audio through WSLg's PulseAudio server.
 # WSL has no ALSA devices; WSLg exposes PulseAudio at unix:/mnt/wslg/PulseServer
-# (RDP audio to Windows). Keep Omarchy's PipeWire + WirePlumber stack and give
+# (RDP audio to Windows). Keep the PipeWire + WirePlumber stack and give
 # it a pulse-tunnel sink and source to that server, so pactl/wpctl/pamixer, the
-# Quickshell audio panel and every app share one graph whose output is Windows.
+# Waybar audio module and every app share one graph whose output is Windows.
 # Inside the Hyprland session PULSE_SERVER must point at pipewire-pulse, not at
 # WSLg directly (the user overlay's uwsm env does that).
 set -euo pipefail

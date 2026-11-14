@@ -1,21 +1,14 @@
-# womarchy (Omarchy on WSL) session environment, sourced by uwsm before Hyprland
-# starts (after Omarchy's /usr/share/uwsm/env.d/10-omarchy). Managed by
-# womarchy-provision-user; put personal additions in another env.d file.
+# whyprland session environment, sourced by uwsm before Hyprland starts.
+# Created by womarchy-provision-user when missing; put personal additions in
+# another env.d file.
 
 # GPU: GALLIUM_DRIVER=d3d12 (only with /dev/dxg) and GSK_RENDERER=ngl come from
 # the 60-womarchy-gpu user environment generator, i.e. from the user manager's
 # environment, which uwsm starts from.
 
 # Audio: WSL points PULSE_SERVER at WSLg's server. Inside the desktop, go through
-# PipeWire instead (it tunnels to WSLg), so pactl/wpctl, the Quickshell audio
-# panel and apps all share one graph and one volume.
+# PipeWire instead (it tunnels to WSLg), so pactl/wpctl, the Waybar audio module
+# and apps all share one graph and one volume.
 if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
   export PULSE_SERVER="unix:${XDG_RUNTIME_DIR}/pulse/native"
 fi
-
-# WSL fallbacks for tools of hardware WSL lacks (e.g. nm-online, so Omarchy's
-# first run does not ask to set up Wi-Fi). Appended: real tools always win.
-case ":$PATH:" in
-  *:/usr/lib/womarchy/bin:*) ;;
-  *) export PATH="$PATH:/usr/lib/womarchy/bin" ;;
-esac

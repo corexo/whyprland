@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 (unreleased)
+
+**whyprland: Hyprland ohne Omarchy** (plain Hyprland on Arch, without Omarchy). A fork of womarchy.
+- The launcher is now `whyprland.exe` with the `whyprland` command; the distro, Start menu entry and folders are named **Whyprland** (`%LOCALAPPDATA%\Programs\Whyprland`, `%LOCALAPPDATA%\Whyprland`). `WHYPRLAND_DISTRO` overrides the default distro name.
+- `whyprland update` runs `pacman -Syu` (through `womarchy-update`) instead of Omarchy's updater; `whyprland rollback` works as before.
+- Releases, installer and issue links point to [corexo/whyprland](https://github.com/corexo/whyprland).
+- The daily snapshot watch is gone: packages now come from the Arch archive at a fixed date, which does not move by itself.
+
 ## 0.2.0 (2026-10-01)
 
 **New**
