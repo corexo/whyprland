@@ -5,8 +5,8 @@
 -- Windows always consumes Super+L (lock) and Ctrl+Alt+Del (secure attention
 -- sequence): no application, RDP client or keyboard hook ever receives them, so
 -- drop bindings on them (they could never fire).
-hl.unbind("SUPER + L")
-hl.unbind("CTRL + ALT + DELETE")
+pcall(hl.unbind, "SUPER + L")
+pcall(hl.unbind, "CTRL + ALT + DELETE")
 
 -- Keyboard. The first-run setup records the Windows keyboard layouts in
 -- /etc/vconsole.conf (XKBLAYOUT/XKBVARIANT, plus XKBOPTIONS such as
@@ -36,9 +36,11 @@ local function current(key)
 end
 
 local input = {}
--- Layout and variant only while hyprland.lua keeps Hyprland's default ("us").
+-- Layout and variant only while hyprland.lua keeps Hyprland's default ("us"), or
+-- when the current value cannot be read ("").
 local layout = vconsole_value("XKBLAYOUT")
-if layout and layout ~= "" and current("input.kb_layout") == "us" then
+local cur = current("input.kb_layout")
+if layout and layout ~= "" and (cur == "" or cur == "us") then
   input.kb_layout = layout
   input.kb_variant = vconsole_value("XKBVARIANT") or ""
 end

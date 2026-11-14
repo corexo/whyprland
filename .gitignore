@@ -12,3 +12,4 @@ windows/whyprland/target/
 # Test and experiment outputs
 lab/out/
 __pycache__/
+linux/packages/womarchy-compat/arch-snapshot

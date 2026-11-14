@@ -8,6 +8,6 @@ rm -rf "$T/repo"; install -d -o builder -g builder "$T" "$T/repo"
 runuser -u builder -- env WOMARCHY_REPO="$T/repo" WOMARCHY_WORK="$T/work" \
   bash "$ROOT/linux/packages/build-all.sh" womarchy-keyring womarchy-compat
 echo "--- compat contents (new files)"
-bsdtar -tf "$T"/repo/womarchy-compat-0.4.0-*.pkg.tar.zst | grep -E "rollback|mesa-llvm|hooks/|keyring" 
+bsdtar -tf "$T"/repo/womarchy-compat-0.5.0-*.pkg.tar.zst | grep -E "rollback|mesa-llvm|hooks/|keyring" 
 echo "--- keyring contents"; bsdtar -tf "$T"/repo/womarchy-keyring-*.pkg.tar.zst | grep -v '^\.'
 echo "--- installed on build host? $(pacman -Q womarchy-compat womarchy-keyring 2>&1 | paste -sd' ')"

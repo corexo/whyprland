@@ -1,14 +1,12 @@
 # womarchy WSL leaf: layer WSL invariants onto Arch's pacman.conf. Idempotent;
 # re-run after every update (womarchy-update -> womarchy-apply-system).
-#  - Mirrors: the image is installed from a dated Arch Linux Archive snapshot
-#    (linux/image/pins.env), but installed systems follow current Arch: when
-#    /etc/pacman.d/mirrorlist has no active Server (pacman-mirrorlist ships it
-#    all commented out), Arch's geo mirror is enabled. An admin's own Server
-#    lines are kept. Risk: current Arch can move Hyprland's libraries
-#    (hyprutils, hyprlang, ...) past what [womarchy]'s patched hyprland and
-#    aquamarine were built against. Their soname dependencies make `pacman -Syu`
-#    refuse such an update (nothing changes) until [womarchy] publishes rebuilds;
-#    an ABI break without a soname bump would only show at runtime.
+#  - Mirrors: installed systems update from the same dated Arch Linux Archive
+#    snapshot the [womarchy] packages were built against
+#    (/usr/lib/womarchy/arch-snapshot, from linux/image/pins.env). Current Arch
+#    would move Hyprland's libraries (hyprutils, hyprlang, ...) past the patched
+#    hyprland/aquamarine and make every `pacman -Syu` fail. A new womarchy-compat
+#    moves the date together with rebuilt packages. An admin's own active Server
+#    lines (not ours) are kept, at their own risk.
 #  - IgnorePkg: WSL boots Microsoft's kernel; never pull a kernel/DKMS/firmware
 #    in on -Syu. (Not linux-* as a whole: linux-api-headers is a glibc dep.)
 #  - [womarchy] before [core], so its hyprland/aquamarine/mesa builds win over
@@ -73,10 +71,14 @@ rm -f "$REPO_DIR"/*.old
 
 # --- Arch mirrors ---------------------------------------------------------------------------
 MIRRORLIST=/etc/pacman.d/mirrorlist
+SNAPSHOT=$(cat /usr/lib/womarchy/arch-snapshot 2>/dev/null || true)
+[[ $SNAPSHOT =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]] || fail "missing or bad /usr/lib/womarchy/arch-snapshot (reinstall womarchy-compat)"
+MANAGED='# Managed by womarchy (wsl/pacman.sh): the Arch archive snapshot whyprland is built against.'
+# Our previous lines go; any other active Server line means the admin chose mirrors.
+[[ -f $MIRRORLIST ]] && sed -i "/^# Managed by womarchy (wsl\/pacman.sh)/,+1d" "$MIRRORLIST"
 if ! grep -qE '^[[:space:]]*Server[[:space:]]*=' "$MIRRORLIST" 2>/dev/null; then
   install -d -m 0755 "${MIRRORLIST%/*}"
-  printf '%s\n' '# Managed by womarchy (wsl/pacman.sh) while no other Server line is active.' \
-    'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' >>"$MIRRORLIST"
+  printf '%s\n' "$MANAGED" "Server = https://archive.archlinux.org/repos/$SNAPSHOT/\$repo/os/\$arch" >>"$MIRRORLIST"
 fi
 
 # --- IgnorePkg (must live in [options]); replace any previous womarchy line ----------

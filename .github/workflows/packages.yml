@@ -112,26 +112,18 @@ jobs:
           shopt -s nullglob
           for f in ../new/*.pkg.tar.zst; do cp "$f" .; new+=("$(basename "$f")"); done
 
-          # First publish only: create the signed `packages` release and seed it with every package of
-          # the old, unsigned `repo` release (which stays unsigned for v0.1.0 installs; see INSTALL-NOTES).
-          seeded=()
           if ! gh release view "$RELEASE" >/dev/null 2>&1; then
             gh release create "$RELEASE" --prerelease --title "[womarchy] pacman repository (signed)" \
               --notes "The signed [womarchy] pacman repository that whyprland installs update from. Not meant to be downloaded by hand: see the README."
           fi
           if gh release view "$RELEASE" --json assets --jq '.assets[].name' | grep -qx 'womarchy.db.tar.gz'; then
             gh release download "$RELEASE" --pattern 'womarchy.db.tar.gz' --pattern 'womarchy.files.tar.gz'
-          else
-            # no database yet (first publish, or one that failed before uploading): seed from `repo`
-            for f in $(gh release view repo --json assets --jq '.assets[].name' | grep '\.pkg\.tar\.zst$'); do
-              [[ -e $f ]] || { gh release download repo --pattern "$f"; seeded+=("$f"); }
-            done
           fi
           assets=$(gh release view "$RELEASE" --json assets --jq '.assets[].name')
 
-          # seeded and new packages: sign and add to the database (new ones last, so they win)
-          for f in "${seeded[@]}" "${new[@]}"; do sign "$f"; done
-          ((${#seeded[@]} + ${#new[@]} == 0)) || repo-add womarchy.db.tar.gz "${seeded[@]}" "${new[@]}"
+          # new packages: sign and add to the database
+          for f in "${new[@]}"; do sign "$f"; done
+          ((${#new[@]} == 0)) || repo-add womarchy.db.tar.gz "${new[@]}"
 
           # older packages on the release without a signature (rollbacks download them)
           old=()
@@ -152,6 +144,6 @@ jobs:
 
           upload=(womarchy.db womarchy.db.sig womarchy.db.tar.gz womarchy.db.tar.gz.sig
                   womarchy.files womarchy.files.sig womarchy.files.tar.gz womarchy.files.tar.gz.sig "${old[@]}")
-          for f in "${seeded[@]}" "${new[@]}"; do upload+=("$f" "$f.sig"); done
+          for f in "${new[@]}"; do upload+=("$f" "$f.sig"); done
           gh release upload "$RELEASE" "${upload[@]}" --clobber
           echo "published: ${new[*]:-(no new packages)}; signed ${#old[@]} older packages"

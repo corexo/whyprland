@@ -30,6 +30,7 @@ package() {
   install -Dm755 "$o/womarchy-apply-system" "$pkgdir/usr/bin/womarchy-apply-system"
   install -Dm755 "$o/womarchy-provision-user" "$pkgdir/usr/bin/womarchy-provision-user"
   install -Dm755 "$o/womarchy-rollback" "$pkgdir/usr/bin/womarchy-rollback"
+  install -Dm644 "$startdir/arch-snapshot" "$pkgdir/usr/lib/womarchy/arch-snapshot"
   install -Dm755 "$o/womarchy-update" "$pkgdir/usr/bin/womarchy-update"
   install -Dm755 "$o/oobe.sh" "$pkgdir/usr/lib/womarchy/oobe.sh"
   install -Dm644 "$o/whyprland.ico" "$pkgdir/usr/lib/womarchy/whyprland.ico"
